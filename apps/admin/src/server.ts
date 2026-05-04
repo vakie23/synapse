@@ -460,7 +460,7 @@ app.post("/login", (req, res) => {
     return;
   }
 
-  const token = createSessionToken(username);
+  const token = createSessionToken(username!);
   res.setHeader("Set-Cookie", `${sessionCookieName}=${token}; HttpOnly; Path=/; SameSite=Lax`);
   res.redirect("/");
 });
