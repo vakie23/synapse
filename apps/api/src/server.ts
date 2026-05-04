@@ -9,8 +9,9 @@ import path from "node:path";
 import busboy from "busboy";
 
 const app = express();
+const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : ["http://localhost:3000", "http://localhost:3200"];
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3200"],
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());

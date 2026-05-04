@@ -242,7 +242,7 @@ function renderAdminPage(): string {
     <div id="dashboardStatus" class="status-box" hidden></div>
   </main>
   <script>
-    const apiBase = "http://localhost:4000";
+    const apiBase = "${process.env.API_BASE_URL ?? "http://localhost:4000"}";
     const dashboardStatus = document.getElementById("dashboardStatus");
     const productForm = document.getElementById("productForm");
     const editProductForm = document.getElementById("editProductForm");

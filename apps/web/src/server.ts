@@ -233,7 +233,7 @@ app.get("/quotation", (_req, res) => {
         return sum + ((product?.weightKg || 0) * line.quantity);
       }, 0);
 
-      const response = await fetch("http://localhost:4000/api/cart/price", {
+      const response = await fetch(apiBase + "/api/cart/price", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lines, delivery: { region, totalWeightKg, express: false } })
@@ -268,7 +268,7 @@ app.get("/quotation", (_req, res) => {
     }
 
     async function loadProducts() {
-      const response = await fetch("http://localhost:4000/api/products");
+      const response = await fetch(apiBase + "/api/products");
       products = await response.json();
       renderProducts();
       updateTotals();
@@ -301,7 +301,7 @@ app.get("/quotation", (_req, res) => {
         delivery: { region, totalWeightKg, express: false }
       };
 
-      const response = await fetch("http://localhost:4000/api/quotation", {
+      const response = await fetch(apiBase + "/api/quotation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -401,7 +401,7 @@ app.get("/track", (_req, res) => {
       }
 
       try {
-        const response = await fetch('http://localhost:4000/api/orders/' + encodeURIComponent(orderId) + '/tracking');
+        const response = await fetch(apiBase + '/api/orders/' + encodeURIComponent(orderId) + '/tracking');
         if (!response.ok) {
           const body = await response.text();
           trackError.hidden = false;
