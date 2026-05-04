@@ -447,18 +447,38 @@ function renderAdminPage(): string {
 
     async function loadDashboard() {
       try {
-        const [products, quotations, orders] = await Promise.all([
+        const [productsResult, quotationsResult, ordersResult] = await Promise.allSettled([
           fetch(apiBase + "/api/products", { credentials: "include" }).then((res) => res.json()),
           apiFetch("/api/admin/quotations"),
           apiFetch("/api/admin/orders")
         ]);
+
+        const products = productsResult.status === "fulfilled" && Array.isArray(productsResult.value)
+          ? productsResult.value
+          : [];
+        const quotations = quotationsResult.status === "fulfilled" && Array.isArray(quotationsResult.value)
+          ? quotationsResult.value
+          : [];
+        const orders = ordersResult.status === "fulfilled" && Array.isArray(ordersResult.value)
+          ? ordersResult.value
+          : [];
+
         allProducts = products;
         allQuotations = quotations;
         renderProducts(products, productSearchInput.value);
         renderQuotations(quotations, quotationSearchInput.value);
         renderTransit(orders);
         renderOrders(orders);
-        showStatus("Dashboard refreshed successfully.");
+
+        const partialFailures = [];
+        if (productsResult.status === "rejected") partialFailures.push("products");
+        if (quotationsResult.status === "rejected") partialFailures.push("quotations");
+        if (ordersResult.status === "rejected") partialFailures.push("orders");
+        if (partialFailures.length === 0) {
+          showStatus("Dashboard refreshed successfully.");
+        } else {
+          showStatus("Dashboard partially loaded. Could not load: " + partialFailures.join(", ") + ".");
+        }
       } catch (error) {
         showStatus("Could not load dashboard data. Please log in again if your session expired.");
       }
