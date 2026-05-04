@@ -195,6 +195,12 @@ export class HardwareDatabase {
       stmt.free();
       await this.persist();
     }
+
+    // Remove temporary test products from existing databases.
+    this.db.run(
+      `DELETE FROM products WHERE LOWER(name) IN ('test item', 'test item 3', 'test item 4')`
+    );
+    await this.persist();
   }
 
   private scalar(query: string): number {
