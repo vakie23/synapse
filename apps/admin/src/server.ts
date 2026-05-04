@@ -275,9 +275,9 @@ function renderAdminPage(): string {
       return response.json();
     }
 
-    function renderProducts(products) {
+    function renderProducts(products: any[]) {
       document.getElementById("productCount").textContent = String(products.length);
-      document.getElementById("productsList").innerHTML = products.map((product) => \`
+      document.getElementById("productsList").innerHTML = products.map((product: any) => `
         <article class="item">
           ${product.imageUrl ? `<img src="${product.imageUrl}" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />` : ''}
           <h3>${product.name}</h3>
@@ -289,7 +289,7 @@ function renderAdminPage(): string {
             <button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm('${product.id}', '${product.name.replace(/'/g, "\\'")}')">Edit</button>
           </div>
         </article>
-      \`).join("");
+      `).join("");
     }
 
     function renderQuotations(quotations) {

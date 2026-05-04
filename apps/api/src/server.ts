@@ -392,8 +392,8 @@ app.post("/api/admin/products", requireAdminAuth, async (req, res) => {
     const parsed = z.object({
       name: z.string().min(2),
       category: z.string().min(2),
-      price: z.string().or(z.number()).pipe(z.coerce.number().positive()),
-      stock: z.string().or(z.number()).pipe(z.coerce.number().int().nonnegative()),
+      price: z.coerce.number().positive(),
+      stock: z.coerce.number().int().nonnegative(),
       description: z.string().min(5)
     }).safeParse(fields);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
@@ -428,14 +428,14 @@ app.patch("/api/admin/products/:id", requireAdminAuth, async (req, res) => {
     const parsed = z.object({
       name: z.string().min(2).optional(),
       category: z.string().min(2).optional(),
-      price: z.string().or(z.number()).pipe(z.coerce.number().positive()).optional(),
-      stock: z.string().or(z.number()).pipe(z.coerce.number().int().nonnegative()).optional(),
+      price: z.coerce.number().positive().optional(),
+      stock: z.coerce.number().int().nonnegative().optional(),
       description: z.string().min(5).optional()
     }).safeParse(fields);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
 
     const productId = String(req.params.id);
-    const updateData = { ...parsed.data };
+    const updateData: any = { ...parsed.data };
     if (imageUrl) {
       updateData.imageUrl = imageUrl;
     }

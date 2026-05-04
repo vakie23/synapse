@@ -19,6 +19,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/busboy": "^1.5.4",
     "@types/sql.js": "^1.4.11"
   }
 }
