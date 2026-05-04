@@ -277,7 +277,9 @@ function renderAdminPage(): string {
 
     function renderProducts(products: any[]) {
       document.getElementById("productCount").textContent = String(products.length);
-      document.getElementById("productsList").innerHTML = products.map((product: any) => `
+      document.getElementById("productsList").innerHTML = products.map((product: any) => {
+        const escapedName = product.name.replace(/'/g, "\\'");
+        return `
         <article class="item">
           ${product.imageUrl ? `<img src="${product.imageUrl}" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />` : ''}
           <h3>${product.name}</h3>
@@ -286,10 +288,10 @@ function renderAdminPage(): string {
           <div>Stock: <strong>${product.stock}</strong></div>
           <div class="muted">${product.description}</div>
           <div style="margin-top:0.5rem;">
-            <button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm('${product.id}', '${product.name.replace(/'/g, "\\'")}')">Edit</button>
+            <button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm('${product.id}', '${escapedName}')">Edit</button>
           </div>
         </article>
-      `).join("");
+      `}).join("");
     }
 
     function renderQuotations(quotations) {

@@ -4,19 +4,19 @@ services:
     env: node
     region: oregon
     branch: main
-    buildCommand: npm install && npm run build --workspaces --if-present
+    buildCommand: npm install && npm run build -w @hardware/shared && npm run build --workspaces --if-present
     startCommand: npm run start -w @hardware/api
   - type: web
     name: synapse-web
     env: node
     region: oregon
     branch: main
-    buildCommand: npm install && npm run build --workspaces --if-present
+    buildCommand: npm install && npm run build -w @hardware/shared && npm run build --workspaces --if-present
     startCommand: npm run start -w @hardware/web
   - type: web
     name: synapse-admin
     env: node
     region: oregon
     branch: main
-    buildCommand: npm install && npm run build --workspaces --if-present
+    buildCommand: npm install && npm run build -w @hardware/shared && npm run build --workspaces --if-present
     startCommand: npm run start -w @hardware/admin

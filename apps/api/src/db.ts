@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
-import type { OrderStatus, PaymentMethod, Product } from "@hardware/shared";
+import type { OrderStatus, PaymentMethod, Product } from "../../packages/shared/src/index.js";
 
 export type DeliveryZone = "Marondera" | "Harare" | "Bulawayo" | "Mutare" | "Other";
 

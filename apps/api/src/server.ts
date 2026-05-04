@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import cors from "cors";
 import express from "express";
 import { z } from "zod";
-import type { PaymentMethod } from "@hardware/shared";
+import type { PaymentMethod } from "../../packages/shared/src/index.js";
 import { HardwareDatabase, type DeliveryZone, type OrderRecord, type QuotationRecord } from "./db.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -343,12 +343,12 @@ async function parseMultipartRequest(req: express.Request): Promise<{ fields: Re
     let imageBuffer: Buffer | undefined;
     let imageMime: string | undefined;
 
-    bb.on("field", (fieldname, val) => {
+    bb.on("field", (fieldname: string, val: string) => {
       fields[fieldname] = val;
       console.error("multipart field", fieldname, val);
     });
 
-    bb.on("file", (fieldname, file, filename, encoding, mimetype) => {
+    bb.on("file", (fieldname: string, file: NodeJS.ReadableStream, filename: string, encoding: string, mimetype: string) => {
       console.error("multipart file event", fieldname, filename, mimetype);
       if (fieldname === "image" && filename) {
         const chunks: Buffer[] = [];
