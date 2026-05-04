@@ -1,7 +1,7 @@
 import express from "express";
 
 const app = express();
-app.use("/assets", express.static("C:\\Users\\ProBook\\Downloads"));
+const logoUrl = process.env.LOGO_URL ?? "";
 const apiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
 
 app.get("/", (_req, res) => {
@@ -25,6 +25,7 @@ app.get("/", (_req, res) => {
     .hero { padding: 3rem 0 2rem 7.25rem; }
     .top-left-logo { position: fixed; top: 0.9rem; left: 0.9rem; z-index: 10; }
     .top-left-logo img { width: 90px; height: auto; display: block; }
+    .logo-fallback { width: 90px; height: 90px; border-radius: 50%; background: #241c7a; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 1.35rem; }
     .brand { color: var(--brand-blue); font-size: 2.7rem; margin-bottom: 0.3rem; }
     .tag { color: var(--brand-red); font-size: 1.2rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
     .intro { max-width: 760px; font-size: 1.05rem; }
@@ -43,7 +44,12 @@ app.get("/", (_req, res) => {
 </head>
 <body>
   <a class="top-left-logo" href="/" aria-label="Synapse Engineering home">
-    <img src="/assets/WhatsApp%20Image%202026-04-22%20at%201.42.08%20PM.jpeg" alt="Synapse Engineering logo" />
+    ${
+      logoUrl
+        ? `<img src="${logoUrl}" alt="Synapse Engineering logo" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';" />`
+        : ""
+    }
+    <span class="logo-fallback" style="${logoUrl ? "display:none;" : ""}">SE</span>
   </a>
   <header class="hero">
     <h1 class="brand">Synapse Engineering</h1>
@@ -109,6 +115,9 @@ app.get("/quotation", (_req, res) => {
     .secondary { background: #b32025; color: white; }
     .layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1rem; }
     .item-list { display: grid; gap: 0.8rem; }
+    .search-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.7rem 0 0.9rem; }
+    .search-row input { flex: 1 1 240px; }
+    .search-row button { border: 0; cursor: pointer; }
     .item-card { display: grid; grid-template-columns: auto 1fr auto; gap: 0.8rem; align-items: start; padding: 0.9rem; border: 1px solid #e8e8ee; border-radius: 0.7rem; }
     .item-card h3 { margin: 0 0 0.25rem; color: #241c7a; font-size: 1rem; }
     .item-card p { margin: 0.1rem 0; }
@@ -145,6 +154,10 @@ app.get("/quotation", (_req, res) => {
       <section class="panel" aria-labelledby="items-title">
         <h2 id="items-title">Choose Items and Quantities</h2>
         <p>Select as many different electrical items as you want, enter quantity for each one, and the system will calculate the total quotation.</p>
+        <div class="search-row">
+          <input id="itemSearch" type="search" placeholder="Search items by name, category, or description" />
+          <button id="itemSearchBtn" class="button primary" type="button">Search</button>
+        </div>
         <div id="item-list" class="item-list" aria-live="polite"></div>
       </section>
 
@@ -234,6 +247,8 @@ app.get("/quotation", (_req, res) => {
     const deliveryFeeEl = document.getElementById("deliveryFee");
     const grandTotalEl = document.getElementById("grandTotal");
     const statusEl = document.getElementById("status");
+    const itemSearchInput = document.getElementById("itemSearch");
+    const itemSearchBtn = document.getElementById("itemSearchBtn");
     const locationStatusEl = document.getElementById("locationStatus");
     const detectLocationBtn = document.getElementById("detectLocationBtn");
     const form = document.getElementById("quotation-form");
@@ -368,8 +383,10 @@ app.get("/quotation", (_req, res) => {
       });
     }
 
-    async function loadProducts() {
-      const response = await fetch(apiBase + "/api/products");
+    async function loadProducts(searchQuery = "") {
+      const query = String(searchQuery || "").trim();
+      const path = query ? ("/api/products?search=" + encodeURIComponent(query)) : "/api/products";
+      const response = await fetch(apiBase + path);
       products = await response.json();
       renderProducts();
       updateTotals();
@@ -432,6 +449,13 @@ app.get("/quotation", (_req, res) => {
     });
 
     document.getElementById("region").addEventListener("change", updateTotals);
+    itemSearchBtn.addEventListener("click", () => loadProducts(itemSearchInput.value));
+    itemSearchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        loadProducts(itemSearchInput.value);
+      }
+    });
     detectLocationBtn.addEventListener("click", detectCurrentLocation);
     initPickupMap();
     detectCurrentLocation();

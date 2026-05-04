@@ -246,6 +246,10 @@ function renderAdminPage(): string {
           <h2>Products</h2>
           <span class="muted">Inventory currently available</span>
         </div>
+        <div class="actions" style="margin-top: 0.8rem;">
+          <input id="productSearch" type="search" placeholder="Search products by name, category, or description" />
+          <button id="productSearchBtn" class="primary" type="button">Search</button>
+        </div>
         <div id="productsList" class="list"></div>
       </details>
       <details class="panel collapsible" open>
@@ -253,6 +257,10 @@ function renderAdminPage(): string {
         <div class="split">
           <h2>Quotations</h2>
           <span class="muted">Saved customer quotation requests</span>
+        </div>
+        <div class="actions" style="margin-top: 0.8rem;">
+          <input id="quotationSearch" type="search" placeholder="Search quotations by customer, ID, phone, or email" />
+          <button id="quotationSearchBtn" class="primary" type="button">Search</button>
         </div>
         <div id="quotationsList" class="list"></div>
       </details>
@@ -282,7 +290,12 @@ function renderAdminPage(): string {
     const editProductForm = document.getElementById("editProductForm");
     const statusForm = document.getElementById("statusForm");
     const credentialsForm = document.getElementById("credentialsForm");
+    const productSearchInput = document.getElementById("productSearch");
+    const productSearchBtn = document.getElementById("productSearchBtn");
+    const quotationSearchInput = document.getElementById("quotationSearch");
+    const quotationSearchBtn = document.getElementById("quotationSearchBtn");
     let allProducts = [];
+    let allQuotations = [];
 
     function populateEditForm(productId, productName) {
       document.getElementById("editProductForm").elements["productId"].value = productId;
@@ -318,22 +331,42 @@ function renderAdminPage(): string {
       return response.json();
     }
 
-    function renderProducts(products) {
-      document.getElementById("productCount").textContent = String(products.length);
-      document.getElementById("productsList").innerHTML = products.map((product) => {
+    function renderProducts(products, query = "") {
+      const normalizedQuery = String(query || "").trim().toLowerCase();
+      const filtered = normalizedQuery
+        ? products.filter((product) => {
+            return [product.name, product.category, product.description]
+              .filter(Boolean)
+              .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+          })
+        : products;
+      document.getElementById("productCount").textContent = String(filtered.length);
+      if (!filtered.length) {
+        document.getElementById("productsList").innerHTML = '<div class="muted">No products match your search.</div>';
+        return;
+      }
+      document.getElementById("productsList").innerHTML = filtered.map((product) => {
         const img = product.imageUrl ? '<img src="' + product.imageUrl + '" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />' : '';
         const escapedName = product.name.replace(/'/g, "\\'");
-        return '<article class="item">' + img + '<h3>' + product.name + '</h3><div class="muted">' + product.category + '</div><div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div><div>Stock: <strong>' + product.stock + '</strong></div><div class="muted">' + product.description + '</div><div style="margin-top:0.5rem;"><button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm(' + "'" + product.id + "'" + ', ' + "'" + escapedName + "'" + ')">Edit</button></div></article>';
+        return '<article class="item">' + img + '<h3>' + product.name + '</h3><div class="muted">' + product.category + '</div><div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div><div>Stock: <strong>' + product.stock + '</strong></div><div class="muted">' + product.description + '</div><div class="actions" style="margin-top:0.5rem;"><button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm(' + "'" + product.id + "'" + ', ' + "'" + escapedName + "'" + ')">Edit</button><button class="secondary product-delete-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Delete</button></div></article>';
       }).join("");
     }
 
-    function renderQuotations(quotations) {
-      document.getElementById("quotationCount").textContent = String(quotations.length);
-      if (!quotations.length) {
+    function renderQuotations(quotations, query = "") {
+      const normalizedQuery = String(query || "").trim().toLowerCase();
+      const filtered = normalizedQuery
+        ? quotations.filter((quotation) => {
+            return [quotation.customerName, quotation.quotationId, quotation.phone, quotation.email]
+              .filter(Boolean)
+              .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+          })
+        : quotations;
+      document.getElementById("quotationCount").textContent = String(filtered.length);
+      if (!filtered.length) {
         document.getElementById("quotationsList").innerHTML = '<div class="muted">No quotations yet.</div>';
         return;
       }
-      document.getElementById("quotationsList").innerHTML = quotations.map((quotation) => {
+      document.getElementById("quotationsList").innerHTML = filtered.map((quotation) => {
         const discountAmount = Number(quotation.discountAmount || 0);
         const location = quotation.customerLocation || {};
         const lat = Number(location.lat);
@@ -419,8 +452,10 @@ function renderAdminPage(): string {
           apiFetch("/api/admin/quotations"),
           apiFetch("/api/admin/orders")
         ]);
-        renderProducts(products);
-        renderQuotations(quotations);
+        allProducts = products;
+        allQuotations = quotations;
+        renderProducts(products, productSearchInput.value);
+        renderQuotations(quotations, quotationSearchInput.value);
         renderTransit(orders);
         renderOrders(orders);
         showStatus("Dashboard refreshed successfully.");
@@ -569,6 +604,51 @@ function renderAdminPage(): string {
         showStatus("Could not delete quotation. Please try again.");
       }
     });
+
+    document.getElementById("productsList").addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const button = target.closest(".product-delete-btn");
+      if (!(button instanceof HTMLElement)) {
+        return;
+      }
+
+      const productId = button.getAttribute("data-product-id");
+      if (!productId) {
+        showStatus("Missing product ID. Refresh and try again.");
+        return;
+      }
+
+      const confirmed = window.confirm("Delete this product permanently?");
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await apiFetch("/api/admin/products/" + encodeURIComponent(productId), {
+          method: "DELETE"
+        });
+        await loadDashboard();
+        showStatus("Product deleted successfully.");
+      } catch {
+        showStatus("Could not delete product. Please try again.");
+      }
+    });
+
+    function applyProductSearch() {
+      renderProducts(allProducts, productSearchInput.value);
+    }
+
+    function applyQuotationSearch() {
+      renderQuotations(allQuotations, quotationSearchInput.value);
+    }
+
+    productSearchBtn.addEventListener("click", applyProductSearch);
+    quotationSearchBtn.addEventListener("click", applyQuotationSearch);
+    productSearchInput.addEventListener("input", applyProductSearch);
+    quotationSearchInput.addEventListener("input", applyQuotationSearch);
 
     credentialsForm.addEventListener("submit", async (event) => {
       event.preventDefault();

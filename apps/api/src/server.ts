@@ -609,6 +609,20 @@ app.patch("/api/admin/products/:id", requireAdminAuth, async (req, res) => {
   }
 });
 
+app.delete("/api/admin/products/:id", requireAdminAuth, async (req, res) => {
+  try {
+    const productId = String(req.params.id);
+    const deleted = await db.deleteProduct(productId);
+    if (!deleted) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error("delete product error", error);
+    res.status(400).json({ message: "Failed to delete product", error: String(error) });
+  }
+});
+
 app.post("/api/admin/credentials", requireAdminAuth, (req, res) => {
   const parsed = z.object({
     newUsername: z.string().min(2),

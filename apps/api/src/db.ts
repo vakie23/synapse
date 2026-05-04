@@ -275,6 +275,16 @@ export class HardwareDatabase {
     return merged;
   }
 
+  async deleteProduct(id: string): Promise<boolean> {
+    const existing = this.getProduct(id);
+    if (!existing) {
+      return false;
+    }
+    this.db.run("DELETE FROM products WHERE id = ?", [id]);
+    await this.persist();
+    return true;
+  }
+
   async adjustStock(productId: string, quantity: number): Promise<void> {
     this.db.run("UPDATE products SET stock = stock - ? WHERE id = ?", [quantity, productId]);
     await this.persist();
