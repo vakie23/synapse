@@ -285,6 +285,8 @@ function renderAdminPage(): string {
   </main>
   <script>
     const apiBase = "${process.env.API_BASE_URL ?? "http://localhost:4000"}";
+    const adminApiUsername = ${JSON.stringify(adminUsername)};
+    const adminApiPassword = ${JSON.stringify(adminPassword)};
     const dashboardStatus = document.getElementById("dashboardStatus");
     const productForm = document.getElementById("productForm");
     const editProductForm = document.getElementById("editProductForm");
@@ -307,10 +309,18 @@ function renderAdminPage(): string {
       dashboardStatus.textContent = message;
     }
 
+    function getAdminAuthHeaders(extraHeaders = {}) {
+      return {
+        ...extraHeaders,
+        "x-admin-username": adminApiUsername,
+        "x-admin-password": adminApiPassword
+      };
+    }
+
     async function apiFetch(path, options = {}) {
       const response = await fetch(apiBase + path, {
         credentials: "include",
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        headers: getAdminAuthHeaders({ "Content-Type": "application/json", ...(options.headers || {}) }),
         ...options
       });
 
@@ -492,6 +502,7 @@ function renderAdminPage(): string {
         const response = await fetch(apiBase + "/api/admin/products", {
           method: "POST",
           credentials: "include",
+          headers: getAdminAuthHeaders(),
           body: formData
         });
 
@@ -521,6 +532,7 @@ function renderAdminPage(): string {
         const response = await fetch(apiBase + "/api/admin/products/" + encodeURIComponent(productId), {
           method: "PATCH",
           credentials: "include",
+          headers: getAdminAuthHeaders(),
           body: formData
         });
 
@@ -690,7 +702,7 @@ function renderAdminPage(): string {
         const response = await fetch(apiBase + "/api/admin/credentials", {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: getAdminAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             newUsername: String(formData.get("newUsername")),
             newPassword: newPassword

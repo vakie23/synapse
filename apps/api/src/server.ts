@@ -175,7 +175,10 @@ function getCurrentCustomer(req: express.Request) {
 
 function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
   const token = parseCookies(req.headers.cookie)[sessionCookieName];
-  if (!token || !verifySessionToken(token)) {
+  const headerUsername = String(req.headers["x-admin-username"] ?? "");
+  const headerPassword = String(req.headers["x-admin-password"] ?? "");
+  const headerAuthOk = headerUsername === getAdminUsername() && headerPassword === getAdminPassword();
+  if ((!token || !verifySessionToken(token)) && !headerAuthOk) {
     res.status(401).json({ message: "Admin authentication required" });
     return;
   }
