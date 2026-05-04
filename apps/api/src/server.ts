@@ -25,6 +25,21 @@ app.use("/images", express.static(imagesDir));
 
 
 const db = new HardwareDatabase();
+const customerSessionCookieName = "synapse_customer_session";
+const customerSessions = new Map<string, { customerId: string; createdAt: number }>();
+const zimbabweRegions = [
+  "Harare",
+  "Bulawayo",
+  "Manicaland",
+  "Mashonaland Central",
+  "Mashonaland East",
+  "Mashonaland West",
+  "Masvingo",
+  "Matabeleland North",
+  "Matabeleland South",
+  "Midlands"
+] as const;
+type ZimbabweRegion = (typeof zimbabweRegions)[number];
 const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
 const sessionCookieName = "synapse_admin_session";
 const sessionSecret = process.env.ADMIN_SESSION_SECRET ?? "synapse-admin-secret";
@@ -55,9 +70,9 @@ const getAdminPassword = () => savedCredentials?.password ?? process.env.ADMIN_P
 
 const companyProfile = {
   companyName: "Synapse Engineering",
-  email: "info@synapseengineering.co.zw",
-  phone: "+263771234567",
-  whatsapp: "+263771234567",
+  email: "synapseengineering@gmail.com",
+  phone: "+263783944171",
+  whatsapp: "+263783944171",
   services: [
     "Power line construction",
     "Heavy solar system construction",
@@ -72,7 +87,7 @@ const orderSchema = z.object({
   customerName: z.string().min(2),
   phone: z.string().min(7),
   address: z.string().min(5),
-  region: z.enum(["A", "B", "C"]),
+  region: z.enum(zimbabweRegions),
   city: z.string().min(2),
   customerLocation: z.object({
     lat: z.number(),
@@ -83,13 +98,26 @@ const orderSchema = z.object({
 });
 
 const deliverySchema = z.object({
-  region: z.enum(["A", "B", "C"]),
+  region: z.enum(zimbabweRegions),
   totalWeightKg: z.number().nonnegative(),
   express: z.boolean().default(false)
 });
 
-function computeDeliveryFee(region: "A" | "B" | "C", totalWeightKg: number, express: boolean): number {
-  const zoneBase = { A: 4, B: 7.5, C: 12 }[region];
+const regionBaseFee: Record<ZimbabweRegion, number> = {
+  Harare: 4,
+  Bulawayo: 7,
+  Manicaland: 8,
+  "Mashonaland Central": 7.5,
+  "Mashonaland East": 6.5,
+  "Mashonaland West": 7,
+  Masvingo: 8.5,
+  "Matabeleland North": 9,
+  "Matabeleland South": 9,
+  Midlands: 8
+};
+
+function computeDeliveryFee(region: ZimbabweRegion, totalWeightKg: number, express: boolean): number {
+  const zoneBase = regionBaseFee[region];
   const weightBand = totalWeightKg <= 2 ? 0 : totalWeightKg <= 10 ? 3 : 8;
   const serviceFee = express ? 5 : 0;
   return zoneBase + weightBand + serviceFee;
@@ -133,6 +161,18 @@ function verifySessionToken(token: string): boolean {
   }
 }
 
+function hashPassword(password: string): string {
+  return crypto.createHash("sha256").update(password).digest("hex");
+}
+
+function getCurrentCustomer(req: express.Request) {
+  const token = parseCookies(req.headers.cookie)[customerSessionCookieName];
+  if (!token) return undefined;
+  const session = customerSessions.get(token);
+  if (!session) return undefined;
+  return db.getCustomerById(session.customerId);
+}
+
 function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
   const token = parseCookies(req.headers.cookie)[sessionCookieName];
   if (!token || !verifySessionToken(token)) {
@@ -147,8 +187,80 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "hardware-api" });
 });
 
+app.get("/", (_req, res) => {
+  res.json({
+    service: "hardware-api",
+    status: "ok",
+    message: "API is running. Use /health or /api/* endpoints.",
+    endpoints: [
+      "/health",
+      "/api/products",
+      "/api/categories",
+      "/api/cart/price",
+      "/api/quotation",
+      "/api/orders/:id/tracking"
+    ]
+  });
+});
+
 app.get("/api/company", (_req, res) => {
   res.json(companyProfile);
+});
+
+app.post("/api/auth/signup", async (req, res) => {
+  const parsed = z.object({
+    name: z.string().min(2),
+    email: z.email(),
+    password: z.string().min(4),
+    phone: z.string().min(7).optional()
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+  const existing = db.getCustomerByEmail(parsed.data.email);
+  if (existing) return res.status(409).json({ message: "Email already exists" });
+
+  const customer = await db.createCustomer({
+    name: parsed.data.name,
+    email: parsed.data.email,
+    phone: parsed.data.phone,
+    passwordHash: hashPassword(parsed.data.password)
+  });
+
+  const token = crypto.randomBytes(24).toString("hex");
+  customerSessions.set(token, { customerId: customer.id, createdAt: Date.now() });
+  res.setHeader("Set-Cookie", `${customerSessionCookieName}=${token}; HttpOnly; Path=/; SameSite=Lax`);
+  res.status(201).json({ id: customer.id, name: customer.name, email: customer.email, phone: customer.phone });
+});
+
+app.post("/api/auth/signin", (req, res) => {
+  const parsed = z.object({
+    email: z.email(),
+    password: z.string().min(4)
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+  const customer = db.getCustomerByEmail(parsed.data.email);
+  if (!customer || customer.passwordHash !== hashPassword(parsed.data.password)) {
+    return res.status(401).json({ message: "Invalid email or password" });
+  }
+
+  const token = crypto.randomBytes(24).toString("hex");
+  customerSessions.set(token, { customerId: customer.id, createdAt: Date.now() });
+  res.setHeader("Set-Cookie", `${customerSessionCookieName}=${token}; HttpOnly; Path=/; SameSite=Lax`);
+  res.json({ id: customer.id, name: customer.name, email: customer.email, phone: customer.phone });
+});
+
+app.post("/api/auth/signout", (req, res) => {
+  const token = parseCookies(req.headers.cookie)[customerSessionCookieName];
+  if (token) customerSessions.delete(token);
+  res.setHeader("Set-Cookie", `${customerSessionCookieName}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`);
+  res.status(204).send();
+});
+
+app.get("/api/auth/me", (req, res) => {
+  const customer = getCurrentCustomer(req);
+  if (!customer) return res.status(401).json({ message: "Not signed in" });
+  res.json({ id: customer.id, name: customer.name, email: customer.email, phone: customer.phone });
 });
 
 app.get("/api/products", (req, res) => {
@@ -190,6 +302,10 @@ app.post("/api/quotation", async (req, res) => {
     phone: z.string().min(7),
     email: z.email(),
     city: z.string().min(2),
+    customerLocation: z.object({
+      lat: z.number(),
+      lng: z.number()
+    }),
     physicalAddress: z.string().min(5),
     requiredDate: z.string().min(4),
     lines: z.array(z.object({ productId: z.string(), quantity: z.number().int().min(1) })).min(1),
@@ -226,9 +342,10 @@ app.post("/api/quotation", async (req, res) => {
     phone: payload.data.phone,
     email: payload.data.email,
     city: payload.data.city,
+    customerLocation: payload.data.customerLocation,
     physicalAddress: payload.data.physicalAddress,
     requiredDate: payload.data.requiredDate,
-    serviceArea: estimateZone(payload.data.city),
+    serviceArea: payload.data.delivery.region,
     lines,
     subtotal,
     deliveryFee,
@@ -237,6 +354,19 @@ app.post("/api/quotation", async (req, res) => {
   };
 
   await db.saveQuotation(quotation);
+  res.json({
+    ...quotation,
+    contact: {
+      email: companyProfile.email,
+      phone: companyProfile.phone
+    }
+  });
+});
+
+app.get("/api/quotation/:id", (req, res) => {
+  const quotationId = String(req.params.id);
+  const quotation = db.getQuotation(quotationId);
+  if (!quotation) return res.status(404).json({ message: "Quotation not found" });
   res.json({
     ...quotation,
     contact: {
@@ -312,6 +442,37 @@ app.get("/api/admin/orders", requireAdminAuth, (_req, res) => {
 
 app.get("/api/admin/quotations", requireAdminAuth, (_req, res) => {
   res.json(db.listQuotations());
+});
+
+app.patch("/api/admin/quotations/:id", requireAdminAuth, async (req, res) => {
+  const parsed = z.object({
+    deliveryFee: z.number().nonnegative().optional(),
+    discountAmount: z.number().nonnegative().optional()
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+  const quotation = db.getQuotation(String(req.params.id));
+  if (!quotation) return res.status(404).json({ message: "Quotation not found" });
+
+  const nextDeliveryFee = parsed.data.deliveryFee ?? quotation.deliveryFee;
+  const nextDiscountAmount = parsed.data.discountAmount ?? quotation.discountAmount ?? 0;
+  const maxDiscount = quotation.subtotal + nextDeliveryFee;
+  const appliedDiscount = Math.min(nextDiscountAmount, maxDiscount);
+
+  quotation.deliveryFee = nextDeliveryFee;
+  quotation.discountAmount = appliedDiscount;
+  quotation.total = Math.max(0, quotation.subtotal + nextDeliveryFee - appliedDiscount);
+  quotation.adminAdjustedAt = new Date().toISOString();
+
+  await db.updateQuotation(quotation);
+  res.json(quotation);
+});
+
+app.delete("/api/admin/quotations/:id", requireAdminAuth, async (req, res) => {
+  const quotationId = String(req.params.id);
+  const deleted = await db.deleteQuotation(quotationId);
+  if (!deleted) return res.status(404).json({ message: "Quotation not found" });
+  res.status(204).send();
 });
 
 app.patch("/api/admin/orders/:id/status", requireAdminAuth, async (req, res) => {

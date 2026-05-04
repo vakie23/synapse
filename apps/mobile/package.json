@@ -3,8 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "echo \"Mobile app scaffold ready. Integrate with Expo/React Native runtime next.\"",
-    "build": "echo \"No build configured yet\"",
+    "dev": "echo \"Mobile wrapper uses deployed web URL. Configure APP_URL first.\"",
+    "build": "echo \"Use Android Studio to build release AAB.\"",
+    "android:init": "cap add android",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android",
     "lint": "echo \"No lint configured for mobile\""
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1"
   }
 }

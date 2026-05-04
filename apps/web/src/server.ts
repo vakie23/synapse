@@ -2,6 +2,7 @@ import express from "express";
 
 const app = express();
 app.use("/assets", express.static("C:\\Users\\ProBook\\Downloads"));
+const apiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
 
 app.get("/", (_req, res) => {
   res.type("html").send(`<!doctype html>
@@ -53,7 +54,7 @@ app.get("/", (_req, res) => {
     <div class="actions">
       <a class="button button-primary" href="/quotation">View items and get a quotation</a>
       <a class="button button-secondary" href="/track">Track your order</a>
-      <a class="button button-light" href="mailto:info@synapseengineering.co.zw">Email us</a>
+      <a class="button button-light" href="mailto:synapseengineering@gmail.com?subject=Customer%20Inquiry">Email us</a>
     </div>
   </header>
   <main>
@@ -76,8 +77,8 @@ app.get("/", (_req, res) => {
     </section>
     <section class="contact" aria-labelledby="contact-title">
       <h2 id="contact-title">Contact Synapse Engineering</h2>
-      <p>Email: <a href="mailto:info@synapseengineering.co.zw">info@synapseengineering.co.zw</a></p>
-      <p>Phone: <a href="tel:+263771234567">+263 77 123 4567</a></p>
+      <p>Email: <a href="mailto:synapseengineering@gmail.com">synapseengineering@gmail.com</a></p>
+      <p>Phone: <a href="tel:+263783944171">+263783944171</a></p>
     </section>
   </main>
 </body>
@@ -91,6 +92,7 @@ app.get("/quotation", (_req, res) => {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quotation | Synapse Engineering</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f7f8fc; color: #1a1a1a; }
     main { width: min(1100px, 94vw); margin: 0 auto; padding: 2rem 0 3rem; }
@@ -117,11 +119,13 @@ app.get("/quotation", (_req, res) => {
     .total-row { font-size: 1.1rem; font-weight: 700; color: #241c7a; }
     .small { color: #666; font-size: 0.92rem; }
     .status { margin-top: 1rem; padding: 0.85rem; border-radius: 0.6rem; background: #eef3ff; color: #241c7a; }
+    #pickupMap { width: 100%; height: 250px; border-radius: 0.65rem; margin-top: 0.5rem; background: #fafbff; }
     @media (max-width: 860px) {
       .layout, .field-grid { grid-template-columns: 1fr; }
       .item-card { grid-template-columns: auto 1fr; }
     }
   </style>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body>
   <main>
@@ -132,6 +136,7 @@ app.get("/quotation", (_req, res) => {
       </div>
       <div>
         <a href="/track" class="button secondary">Track your order</a>
+        <a href="/quotation-status" class="button" style="background:#eceffd;color:#241c7a;">View saved quotation</a>
         <a href="/" class="button primary">Back to home page</a>
       </div>
     </div>
@@ -170,15 +175,41 @@ app.get("/quotation", (_req, res) => {
             <div>
               <label for="region">Delivery region</label>
               <select id="region" name="region">
-                <option value="A">Region A</option>
-                <option value="B">Region B</option>
-                <option value="C">Region C</option>
+                <option value="Harare">Harare</option>
+                <option value="Bulawayo">Bulawayo</option>
+                <option value="Manicaland">Manicaland</option>
+                <option value="Mashonaland Central">Mashonaland Central</option>
+                <option value="Mashonaland East">Mashonaland East</option>
+                <option value="Mashonaland West">Mashonaland West</option>
+                <option value="Masvingo">Masvingo</option>
+                <option value="Matabeleland North">Matabeleland North</option>
+                <option value="Matabeleland South">Matabeleland South</option>
+                <option value="Midlands">Midlands</option>
               </select>
             </div>
           </div>
           <div style="margin-top: 1rem;">
             <label for="physicalAddress">Physical address</label>
             <textarea id="physicalAddress" name="physicalAddress" rows="3" required></textarea>
+          </div>
+          <div style="margin-top: 1rem;">
+            <label>Pick customer location on map</label>
+            <p class="small">Tap/click the map to set delivery coordinates.</p>
+            <div class="actions" style="margin-top: 0.4rem;">
+              <button id="detectLocationBtn" type="button" class="button" style="background:#eceffd;color:#241c7a;">Use my current location</button>
+            </div>
+            <p id="locationStatus" class="small" style="margin-top: 0.5rem;"></p>
+            <div id="pickupMap"></div>
+            <div class="field-grid" style="margin-top: 0.7rem;">
+              <div>
+                <label for="customerLat">Latitude</label>
+                <input id="customerLat" name="customerLat" type="number" step="0.000001" readonly required />
+              </div>
+              <div>
+                <label for="customerLng">Longitude</label>
+                <input id="customerLng" name="customerLng" type="number" step="0.000001" readonly required />
+              </div>
+            </div>
           </div>
           <div class="note" style="margin-top: 1rem;">
             <div class="summary-row"><span>Selected items total</span><strong id="subtotal">$0.00</strong></div>
@@ -188,8 +219,8 @@ app.get("/quotation", (_req, res) => {
           </div>
           <div class="actions">
             <button class="button primary" type="submit">Generate quotation</button>
-            <a class="button secondary" href="tel:+263771234567">Direct phone call</a>
-            <a class="button" href="mailto:info@synapseengineering.co.zw?subject=Quotation%20Request" style="background:#eceffd;color:#241c7a;">Email us</a>
+            <a class="button secondary" href="tel:+263783944171">Direct phone call</a>
+            <a class="button" href="mailto:synapseengineering@gmail.com?subject=Quotation%20Request" style="background:#eceffd;color:#241c7a;">Email us</a>
           </div>
         </form>
         <div id="status" class="status" hidden></div>
@@ -197,14 +228,83 @@ app.get("/quotation", (_req, res) => {
     </div>
   </main>
   <script>
+    const apiBase = ${JSON.stringify(apiBase)};
     const itemList = document.getElementById("item-list");
     const subtotalEl = document.getElementById("subtotal");
     const deliveryFeeEl = document.getElementById("deliveryFee");
     const grandTotalEl = document.getElementById("grandTotal");
     const statusEl = document.getElementById("status");
+    const locationStatusEl = document.getElementById("locationStatus");
+    const detectLocationBtn = document.getElementById("detectLocationBtn");
     const form = document.getElementById("quotation-form");
     const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+    const regionBaseFees = {
+      "Harare": 4,
+      "Bulawayo": 7,
+      "Manicaland": 8,
+      "Mashonaland Central": 7.5,
+      "Mashonaland East": 6.5,
+      "Mashonaland West": 7,
+      "Masvingo": 8.5,
+      "Matabeleland North": 9,
+      "Matabeleland South": 9,
+      "Midlands": 8
+    };
     let products = [];
+    let pickupMap;
+    let pickupMarker;
+
+    function setCustomerLocation(lat, lng) {
+      document.getElementById("customerLat").value = String(Number(lat).toFixed(6));
+      document.getElementById("customerLng").value = String(Number(lng).toFixed(6));
+    }
+
+    function initPickupMap() {
+      const defaultLat = -17.8252;
+      const defaultLng = 31.0335;
+      pickupMap = L.map("pickupMap").setView([defaultLat, defaultLng], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(pickupMap);
+
+      pickupMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(pickupMap);
+      setCustomerLocation(defaultLat, defaultLng);
+
+      pickupMap.on("click", (event) => {
+        const { lat, lng } = event.latlng;
+        pickupMarker.setLatLng([lat, lng]);
+        setCustomerLocation(lat, lng);
+      });
+
+      pickupMarker.on("dragend", () => {
+        const position = pickupMarker.getLatLng();
+        setCustomerLocation(position.lat, position.lng);
+      });
+    }
+
+    function detectCurrentLocation() {
+      if (!navigator.geolocation) {
+        locationStatusEl.textContent = "Geolocation is not supported on this browser.";
+        return;
+      }
+
+      locationStatusEl.textContent = "Getting your current location...";
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          pickupMarker.setLatLng([lat, lng]);
+          pickupMap.setView([lat, lng], 14);
+          setCustomerLocation(lat, lng);
+          locationStatusEl.textContent = "Current location detected. You can still move the pin if needed.";
+        },
+        () => {
+          locationStatusEl.textContent = "Could not access your location. You can select location manually on the map.";
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
 
     function getSelectedLines() {
       return products
@@ -222,9 +322,10 @@ app.get("/quotation", (_req, res) => {
       const lines = getSelectedLines();
       const region = document.getElementById("region").value;
       if (lines.length === 0) {
+        const baseFee = regionBaseFees[region] ?? 4;
         subtotalEl.textContent = currency.format(0);
-        deliveryFeeEl.textContent = currency.format(4);
-        grandTotalEl.textContent = currency.format(4);
+        deliveryFeeEl.textContent = currency.format(baseFee);
+        grandTotalEl.textContent = currency.format(baseFee);
         return;
       }
 
@@ -295,6 +396,10 @@ app.get("/quotation", (_req, res) => {
         phone: document.getElementById("phone").value,
         email: document.getElementById("email").value,
         city,
+        customerLocation: {
+          lat: Number(document.getElementById("customerLat").value),
+          lng: Number(document.getElementById("customerLng").value)
+        },
         physicalAddress: document.getElementById("physicalAddress").value,
         requiredDate: document.getElementById("requiredDate").value,
         lines,
@@ -322,10 +427,14 @@ app.get("/quotation", (_req, res) => {
         "<br><strong>Email:</strong> " + data.email +
         "<br><strong>Date required:</strong> " + data.requiredDate +
         "<br><strong>Address:</strong> " + data.physicalAddress +
-        "<br><br><a href='/track' class='button secondary'>Track your order</a>";
+        "<br><br><a href='/quotation-status?id=" + encodeURIComponent(data.quotationId) + "' class='button primary'>View latest quotation total</a> " +
+        "<a href='/track' class='button secondary'>Track your order</a>";
     });
 
     document.getElementById("region").addEventListener("change", updateTotals);
+    detectLocationBtn.addEventListener("click", detectCurrentLocation);
+    initPickupMap();
+    detectCurrentLocation();
     loadProducts();
   </script>
 </body>
@@ -418,7 +527,7 @@ app.get("/track", (_req, res) => {
             '<div class="track-row"><span>Coordinates</span><span>' + data.tracking.coordinates.lat.toFixed(4) + ', ' + data.tracking.coordinates.lng.toFixed(4) + '</span></div>' +
             '<div class="track-row"><span>Last updated</span><span>' + new Date(data.tracking.updatedAt).toLocaleString() + '</span></div>' +
           '</div>' +
-          '<p style="margin-top:1rem;">If you need more details, contact us at <a href="mailto:info@synapseengineering.co.zw">info@synapseengineering.co.zw</a> or <a href="tel:+263771234567">+263 77 123 4567</a>.</p>';
+          '<p style="margin-top:1rem;">If you need more details, contact us at <a href="mailto:synapseengineering@gmail.com?subject=Customer%20Inquiry">synapseengineering@gmail.com</a> or <a href="tel:+263783944171">+263783944171</a>.</p>';
 
         if (!map) {
           trackMap.innerHTML = '';
@@ -440,6 +549,113 @@ app.get("/track", (_req, res) => {
         trackError.textContent = "Unable to reach the tracking service. Please try again later.";
       }
     });
+  </script>
+</body>
+</html>`);
+});
+
+app.get("/quotation-status", (_req, res) => {
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>View Quotation | Synapse Engineering</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f7f8fc; color: #1a1a1a; }
+    main { width: min(840px, 94vw); margin: 0 auto; padding: 2rem 0 3rem; }
+    h1, h2 { color: #241c7a; }
+    .panel { background: white; border-radius: 0.8rem; padding: 1.2rem; box-shadow: 0 8px 30px rgba(0,0,0,0.06); margin-top: 1rem; }
+    .stack { display: grid; gap: 0.8rem; }
+    label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+    input { width: 100%; padding: 0.75rem; border: 1px solid #cfd4ea; border-radius: 0.5rem; font: inherit; box-sizing: border-box; }
+    .button { display: inline-block; padding: 0.85rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: 700; border: 0; cursor: pointer; }
+    .primary { background: #241c7a; color: white; }
+    .secondary { background: #b32025; color: white; }
+    .note { background: #fff7ef; border-left: 5px solid #f0bb2d; padding: 1rem; border-radius: 0.4rem; }
+    .row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid #ececf2; }
+    .total { font-size: 1.1rem; font-weight: 700; color: #241c7a; }
+    .status { margin-top: 1rem; padding: 0.85rem; border-radius: 0.6rem; background: #eef3ff; color: #241c7a; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <h1>View your quotation</h1>
+      <p>Enter your quotation ID to see the latest totals, including any admin delivery changes or discounts.</p>
+      <form id="lookupForm" class="stack">
+        <div>
+          <label for="quotationId">Quotation ID</label>
+          <input id="quotationId" name="quotationId" placeholder="e.g. qt_1777893320597" required />
+        </div>
+        <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+          <button class="button primary" type="submit">Check quotation</button>
+          <a class="button secondary" href="/quotation">Back to quotation form</a>
+        </div>
+      </form>
+      <div id="status" class="status" hidden></div>
+    </section>
+    <section id="resultPanel" class="panel" hidden>
+      <h2>Latest quotation details</h2>
+      <div id="resultBody"></div>
+    </section>
+  </main>
+  <script>
+    const apiBase = ${JSON.stringify(apiBase)};
+    const lookupForm = document.getElementById("lookupForm");
+    const statusEl = document.getElementById("status");
+    const resultPanel = document.getElementById("resultPanel");
+    const resultBody = document.getElementById("resultBody");
+    const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
+    function renderQuotation(data) {
+      const discount = Number(data.discountAmount || 0);
+      resultBody.innerHTML =
+        '<div class="row"><span>Quotation ID</span><strong>' + data.quotationId + '</strong></div>' +
+        '<div class="row"><span>Customer</span><strong>' + data.customerName + '</strong></div>' +
+        '<div class="row"><span>Email</span><strong>' + data.email + '</strong></div>' +
+        '<div class="row"><span>Phone</span><strong>' + data.phone + '</strong></div>' +
+        '<div class="row"><span>Region</span><strong>' + (data.serviceArea || "N/A") + '</strong></div>' +
+        '<div class="row"><span>Subtotal</span><strong>' + currency.format(Number(data.subtotal || 0)) + '</strong></div>' +
+        '<div class="row"><span>Estimated delivery</span><strong>' + currency.format(Number(data.deliveryFee || 0)) + '</strong></div>' +
+        '<div class="row"><span>Discount</span><strong>-' + currency.format(discount) + '</strong></div>' +
+        '<div class="row total"><span>Grand total</span><strong>' + currency.format(Number(data.total || 0)) + '</strong></div>' +
+        '<div class="note" style="margin-top:0.8rem;">Items: ' + data.lines.map((line) => line.name + ' x' + line.quantity).join(', ') + '</div>';
+      resultPanel.hidden = false;
+    }
+
+    lookupForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      resultPanel.hidden = true;
+      statusEl.hidden = true;
+
+      const quotationId = document.getElementById("quotationId").value.trim();
+      if (!quotationId) {
+        statusEl.hidden = false;
+        statusEl.textContent = "Please enter your quotation ID.";
+        return;
+      }
+
+      try {
+        const response = await fetch(apiBase + "/api/quotation/" + encodeURIComponent(quotationId));
+        if (!response.ok) {
+          statusEl.hidden = false;
+          statusEl.textContent = "Quotation not found. Check your quotation ID and try again.";
+          return;
+        }
+        const data = await response.json();
+        renderQuotation(data);
+      } catch {
+        statusEl.hidden = false;
+        statusEl.textContent = "Could not reach the quotation service. Please try again.";
+      }
+    });
+
+    const queryId = new URLSearchParams(window.location.search).get("id");
+    if (queryId) {
+      document.getElementById("quotationId").value = queryId;
+      lookupForm.requestSubmit();
+    }
   </script>
 </body>
 </html>`);

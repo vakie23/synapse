@@ -6,6 +6,23 @@ services:
     branch: main
     buildCommand: npm install && npm run build -w @hardware/shared && npm run build --workspaces --if-present
     startCommand: npm run start -w @hardware/api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_SESSION_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+    disk:
+      name: synapse-api-data
+      mountPath: /opt/render/project/src/apps/api/data
+      sizeGB: 1
   - type: web
     name: synapse-web
     env: node
@@ -13,6 +30,13 @@ services:
     branch: main
     buildCommand: npm install && npm run build -w @hardware/shared && npm run build --workspaces --if-present
     startCommand: npm run start -w @hardware/web
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: API_BASE_URL
+        sync: false
   - type: web
     name: synapse-admin
     env: node
@@ -20,3 +44,10 @@ services:
     branch: main
     buildCommand: npm install && npm run build -w @hardware/shared && npm run build --workspaces --if-present
     startCommand: npm run start -w @hardware/admin
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: API_BASE_URL
+        sync: false

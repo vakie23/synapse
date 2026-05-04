@@ -47,15 +47,23 @@ Accessible ecommerce starter for Synapse Engineering to sell electrical hardware
 - `render.yaml` defines three services: `synapse-api`, `synapse-web`, and `synapse-admin`.
 - Each service runs a production-ready build (`npm run build --workspaces --if-present`) and starts the compiled JS bundle with `node dist/server.js`.
 - Set Render environment variables for production credentials such as `ADMIN_SESSION_SECRET`, API base URLs, and any map or payment API keys.
+- Full deployment steps: `docs/production-deployment.md`
 
 ### Google Play
-- The `apps/mobile` folder is the starter for your Android app.
-- Next production step is to migrate it to Expo or full React Native Android build, connect it to the same API, generate a signed Android app bundle, and publish it to Google Play Console.
+- The `apps/mobile` folder now includes a Capacitor wrapper for publishing to Google Play.
+- Configure `APP_URL` to your deployed web domain, then run:
+  - `npm run android:init -w @hardware/mobile`
+  - `npm run android:sync -w @hardware/mobile`
+  - `npm run android:open -w @hardware/mobile`
+- Build a signed Android App Bundle (`.aab`) in Android Studio and upload to Play Console.
+- Full publishing steps: `docs/google-play-publishing.md`
 
 ## Documentation
 - `docs/mvp-scope.md`
 - `docs/delivery-pricing.md`
 - `docs/api-contracts.md`
+- `docs/production-deployment.md`
+- `docs/google-play-publishing.md`
 
 ## Accessibility Baseline
 - Semantic HTML landmarks in web/admin pages.

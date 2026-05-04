@@ -137,18 +137,37 @@ function renderAdminPage(): string {
     .muted { color: #666; font-size: 0.95rem; }
     .split { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
     .status-box { margin-top: 1rem; padding: 0.9rem; border-radius: 0.6rem; background: #eef3ff; color: #241c7a; }
+    .chip { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 999px; background: #eef3ff; color: #241c7a; font-size: 0.82rem; font-weight: 700; }
     code { background: #f0f2fb; padding: 0.15rem 0.35rem; border-radius: 0.3rem; }
     @media (max-width: 860px) {
       .grid, .stats { grid-template-columns: 1fr; }
     }
     .hidden { display: none; }
+    details.collapsible > summary {
+      cursor: pointer;
+      list-style: none;
+      font-weight: 700;
+      color: #241c7a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: -0.15rem 0 0.75rem;
+    }
+    details.collapsible > summary::-webkit-details-marker { display: none; }
+    details.collapsible > summary::after {
+      content: "▼";
+      color: #666;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    details.collapsible[open] > summary::after { content: "▲"; }
   </style>
 </head>
 <body>
   <main>
-    <section class="panel">
+    <details class="panel collapsible" open>
+      <summary>Dashboard Overview</summary>
       <h1>Admin Dashboard</h1>
-      <p>This area is protected by credentials and now includes products, quotations, and delivery updates.</p>
       <div class="actions">
         <button class="primary" type="button" onclick="loadDashboard()">Refresh dashboard</button>
         <button class="secondary" type="button" onclick="document.getElementById('credentialsPanel').classList.toggle('hidden')">Change credentials</button>
@@ -169,10 +188,12 @@ function renderAdminPage(): string {
         <div class="stat"><span>Total products</span><strong id="productCount">0</strong></div>
         <div class="stat"><span>Customer quotations</span><strong id="quotationCount">0</strong></div>
         <div class="stat"><span>Orders</span><strong id="orderCount">0</strong></div>
+        <div class="stat"><span>Goods in transit</span><strong id="transitCount">0</strong></div>
       </div>
-    </section>
+    </details>
     <div class="grid">
-      <section class="panel">
+      <details class="panel collapsible" open>
+        <summary>Add Product</summary>
         <h2>Add Product</h2>
         <form id="productForm" class="stack">
           <input name="name" placeholder="Product name" required />
@@ -183,8 +204,9 @@ function renderAdminPage(): string {
           <input name="image" type="file" accept="image/*" placeholder="Product image (optional)" />
           <button class="primary" type="submit">Save product</button>
         </form>
-      </section>
-      <section class="panel">
+      </details>
+      <details class="panel collapsible">
+        <summary>Edit Product</summary>
         <h2>Edit Product</h2>
         <form id="editProductForm" class="stack">
           <input name="productId" placeholder="Product ID" required />
@@ -196,8 +218,9 @@ function renderAdminPage(): string {
           <input name="image" type="file" accept="image/*" placeholder="Product image (optional)" />
           <button class="primary" type="submit">Update product</button>
         </form>
-      </section>
-      <section class="panel">
+      </details>
+      <details class="panel collapsible">
+        <summary>Update Delivery Status</summary>
         <h2>Update Delivery Status</h2>
         <form id="statusForm" class="stack">
           <input name="orderId" placeholder="Order ID" required />
@@ -214,31 +237,42 @@ function renderAdminPage(): string {
           <input name="currentLocation" placeholder="Current location" />
           <button class="secondary" type="submit">Update order status</button>
         </form>
-      </section>
+      </details>
     </div>
     <div class="grid">
-      <section class="panel">
+      <details class="panel collapsible" open>
+        <summary>Products</summary>
         <div class="split">
           <h2>Products</h2>
           <span class="muted">Inventory currently available</span>
         </div>
         <div id="productsList" class="list"></div>
-      </section>
-      <section class="panel">
+      </details>
+      <details class="panel collapsible" open>
+        <summary>Quotations</summary>
         <div class="split">
           <h2>Quotations</h2>
           <span class="muted">Saved customer quotation requests</span>
         </div>
         <div id="quotationsList" class="list"></div>
-      </section>
+      </details>
     </div>
-    <section class="panel">
+    <details class="panel collapsible" open>
+      <summary>Goods in Transit</summary>
+      <div class="split">
+        <h2>Goods in Transit</h2>
+        <span class="muted">Active shipments currently on the road</span>
+      </div>
+      <div id="transitList" class="list"></div>
+    </details>
+    <details class="panel collapsible" open>
+      <summary>Orders and Delivery</summary>
       <div class="split">
         <h2>Orders and Delivery</h2>
         <span class="muted">Track and manage order progress</span>
       </div>
       <div id="ordersList" class="list"></div>
-    </section>
+    </details>
     <div id="dashboardStatus" class="status-box" hidden></div>
   </main>
   <script>
@@ -272,40 +306,110 @@ function renderAdminPage(): string {
         throw new Error(errorText || "Request failed");
       }
 
+      if (response.status === 204) {
+        return null;
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        return null;
+      }
+
       return response.json();
     }
 
-    function renderProducts(products: any[]) {
+    function renderProducts(products) {
       document.getElementById("productCount").textContent = String(products.length);
-      document.getElementById("productsList").innerHTML = products.map((product: any) => {
+      document.getElementById("productsList").innerHTML = products.map((product) => {
         const img = product.imageUrl ? '<img src="' + product.imageUrl + '" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />' : '';
         const escapedName = product.name.replace(/'/g, "\\'");
         return '<article class="item">' + img + '<h3>' + product.name + '</h3><div class="muted">' + product.category + '</div><div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div><div>Stock: <strong>' + product.stock + '</strong></div><div class="muted">' + product.description + '</div><div style="margin-top:0.5rem;"><button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm(' + "'" + product.id + "'" + ', ' + "'" + escapedName + "'" + ')">Edit</button></div></article>';
       }).join("");
     }
 
-    function renderQuotations(quotations: any[]) {
+    function renderQuotations(quotations) {
       document.getElementById("quotationCount").textContent = String(quotations.length);
       if (!quotations.length) {
         document.getElementById("quotationsList").innerHTML = '<div class="muted">No quotations yet.</div>';
         return;
       }
-      document.getElementById("quotationsList").innerHTML = quotations.map((quotation: any) => {
-        return '<article class="item"><div class="split"><h3>' + quotation.customerName + '</h3><strong>$' + Number(quotation.total).toFixed(2) + '</strong></div><div class="muted">Quotation ID: ' + quotation.quotationId + '</div><div>Email: ' + quotation.email + '</div><div>Phone: ' + quotation.phone + '</div><div>Required date: ' + quotation.requiredDate + '</div><div>Address: ' + quotation.physicalAddress + '</div><div>Items: ' + quotation.lines.map((line: any) => line.name + ' x' + line.quantity).join(', ') + '</div></article>';
+      document.getElementById("quotationsList").innerHTML = quotations.map((quotation) => {
+        const discountAmount = Number(quotation.discountAmount || 0);
+        const location = quotation.customerLocation || {};
+        const lat = Number(location.lat);
+        const lng = Number(location.lng);
+        const hasLocation = Number.isFinite(lat) && Number.isFinite(lng);
+        const mapLink = hasLocation ? ('<div><a class="primary" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps?q=' + lat + ',' + lng + '">Open customer location</a></div>') : "";
+        return '<article class="item">' +
+          '<div class="split"><h3>' + quotation.customerName + '</h3><strong>$' + Number(quotation.total).toFixed(2) + '</strong></div>' +
+          '<div class="muted">Quotation ID: ' + quotation.quotationId + '</div>' +
+          '<div>Email: ' + quotation.email + '</div>' +
+          '<div>Phone: ' + quotation.phone + '</div>' +
+          '<div>Region: ' + (quotation.serviceArea || "N/A") + '</div>' +
+          '<div>Required date: ' + quotation.requiredDate + '</div>' +
+          '<div>Address: ' + quotation.physicalAddress + '</div>' +
+          '<div>Coordinates: ' + (hasLocation ? (lat.toFixed(5) + ", " + lng.toFixed(5)) : "N/A") + '</div>' +
+          mapLink +
+          '<div>Items: ' + quotation.lines.map((line) => line.name + ' x' + line.quantity).join(', ') + '</div>' +
+          '<div>Subtotal: <strong>$' + Number(quotation.subtotal).toFixed(2) + '</strong></div>' +
+          '<div>Estimated delivery: <strong>$' + Number(quotation.deliveryFee).toFixed(2) + '</strong></div>' +
+          '<div>Discount: <strong>$' + discountAmount.toFixed(2) + '</strong></div>' +
+          '<form class="quotation-adjust-form stack" data-quotation-id="' + quotation.quotationId + '" style="margin-top:0.75rem;">' +
+            '<label>Update estimated delivery fee' +
+              '<input name="deliveryFee" type="number" min="0" step="0.01" value="' + Number(quotation.deliveryFee).toFixed(2) + '" required />' +
+            '</label>' +
+            '<label>Offer discount amount' +
+              '<input name="discountAmount" type="number" min="0" step="0.01" value="' + discountAmount.toFixed(2) + '" required />' +
+            '</label>' +
+            '<div class="actions">' +
+              '<button class="secondary" type="submit">Apply delivery/discount</button>' +
+              '<button class="secondary quotation-delete-btn" type="button" data-quotation-id="' + quotation.quotationId + '">Delete quotation</button>' +
+            '</div>' +
+          '</form>' +
+        '</article>';
       }).join("");
     }
 
-    function renderOrders(orders: any[]) {
+    function renderOrders(orders) {
       document.getElementById("orderCount").textContent = String(orders.length);
       if (!orders.length) {
         document.getElementById("ordersList").innerHTML = '<div class="muted">No orders yet.</div>';
         return;
       }
-      document.getElementById("ordersList").innerHTML = orders.map((order: any) => {
+      document.getElementById("ordersList").innerHTML = orders.map((order) => {
         return '<article class="item"><div class="split"><h3>' + order.customerName + '</h3><strong>' + order.status + '</strong></div><div class="muted">Order ID: ' + order.id + '</div><div>Phone: ' + order.phone + '</div><div>City: ' + order.city + '</div><div>Address: ' + order.address + '</div><div>Total: <strong>$' + Number(order.total).toFixed(2) + '</strong></div><div>Tracking stage: ' + order.tracking.stage + '</div><div>Current location: ' + order.tracking.currentLocation + '</div></article>';
       }).join("");
     }
-      \`).join("") : '<div class="muted">No orders yet.</div>';
+
+    function renderTransit(orders) {
+      const transitOrders = orders.filter((order) => {
+        const status = String(order.status || "");
+        return status !== "DELIVERED" && status !== "CANCELLED";
+      });
+
+      document.getElementById("transitCount").textContent = String(transitOrders.length);
+      if (!transitOrders.length) {
+        document.getElementById("transitList").innerHTML = '<div class="muted">No goods currently in transit.</div>';
+        return;
+      }
+
+      document.getElementById("transitList").innerHTML = transitOrders.map((order) => {
+        const tracking = order.tracking || {};
+        const coordinates = tracking.coordinates || {};
+        const lat = Number(coordinates.lat);
+        const lng = Number(coordinates.lng);
+        const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
+        const mapsUrl = hasCoordinates ? ("https://www.google.com/maps?q=" + lat + "," + lng) : "";
+        return '<article class="item">' +
+          '<div class="split"><h3>' + order.customerName + '</h3><span class="chip">' + order.status + '</span></div>' +
+          '<div class="muted">Order ID: ' + order.id + '</div>' +
+          '<div>Stage: <strong>' + (tracking.stage || "N/A") + '</strong></div>' +
+          '<div>Current location: <strong>' + (tracking.currentLocation || "N/A") + '</strong></div>' +
+          '<div>Coordinates: <strong>' + (hasCoordinates ? (lat.toFixed(5) + ", " + lng.toFixed(5)) : "N/A") + '</strong></div>' +
+          '<div>Last update: <strong>' + (tracking.updatedAt ? new Date(tracking.updatedAt).toLocaleString() : "N/A") + '</strong></div>' +
+          (hasCoordinates ? ('<div style="margin-top:0.5rem;"><a class="primary" target="_blank" rel="noopener noreferrer" href="' + mapsUrl + '">Open live map</a></div>') : "") +
+        '</article>';
+      }).join("");
     }
 
     async function loadDashboard() {
@@ -317,6 +421,7 @@ function renderAdminPage(): string {
         ]);
         renderProducts(products);
         renderQuotations(quotations);
+        renderTransit(orders);
         renderOrders(orders);
         showStatus("Dashboard refreshed successfully.");
       } catch (error) {
@@ -396,6 +501,72 @@ function renderAdminPage(): string {
         showStatus("Order status updated successfully.");
       } catch {
         showStatus("Could not update that order. Check the order ID and try again.");
+      }
+    });
+
+    document.getElementById("quotationsList").addEventListener("submit", async (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !form.classList.contains("quotation-adjust-form")) {
+        return;
+      }
+      event.preventDefault();
+
+      const quotationId = form.getAttribute("data-quotation-id");
+      if (!quotationId) {
+        showStatus("Missing quotation ID. Refresh and try again.");
+        return;
+      }
+
+      const formData = new FormData(form);
+      const deliveryFee = Number(formData.get("deliveryFee"));
+      const discountAmount = Number(formData.get("discountAmount"));
+
+      if (Number.isNaN(deliveryFee) || deliveryFee < 0 || Number.isNaN(discountAmount) || discountAmount < 0) {
+        showStatus("Enter valid non-negative numbers for delivery and discount.");
+        return;
+      }
+
+      try {
+        await apiFetch("/api/admin/quotations/" + encodeURIComponent(quotationId), {
+          method: "PATCH",
+          body: JSON.stringify({ deliveryFee, discountAmount })
+        });
+        await loadDashboard();
+        showStatus("Quotation updated: delivery estimate and discount applied.");
+      } catch {
+        showStatus("Could not update quotation. Please try again.");
+      }
+    });
+
+    document.getElementById("quotationsList").addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const button = target.closest(".quotation-delete-btn");
+      if (!(button instanceof HTMLElement)) {
+        return;
+      }
+
+      const quotationId = button.getAttribute("data-quotation-id");
+      if (!quotationId) {
+        showStatus("Missing quotation ID. Refresh and try again.");
+        return;
+      }
+
+      const confirmed = window.confirm("Delete this quotation permanently?");
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await apiFetch("/api/admin/quotations/" + encodeURIComponent(quotationId), {
+          method: "DELETE"
+        });
+        await loadDashboard();
+        showStatus("Quotation deleted successfully.");
+      } catch {
+        showStatus("Could not delete quotation. Please try again.");
       }
     });
 

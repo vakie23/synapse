@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Synapse Engineering</string>
+    <string name="title_activity_main">Synapse Engineering</string>
+    <string name="package_name">com.synapseengineering.hardwaresupplies</string>
+    <string name="custom_url_scheme">com.synapseengineering.hardwaresupplies</string>
+</resources>

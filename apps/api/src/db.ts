@@ -4,7 +4,20 @@ import { fileURLToPath } from "node:url";
 import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
 import type { OrderStatus, PaymentMethod, Product } from "@hardware/shared";
 
-export type DeliveryZone = "Marondera" | "Harare" | "Bulawayo" | "Mutare" | "Other";
+export type DeliveryZone =
+  | "Harare"
+  | "Bulawayo"
+  | "Manicaland"
+  | "Mashonaland Central"
+  | "Mashonaland East"
+  | "Mashonaland West"
+  | "Masvingo"
+  | "Matabeleland North"
+  | "Matabeleland South"
+  | "Midlands"
+  | "Marondera"
+  | "Mutare"
+  | "Other";
 
 export type CatalogProduct = Product & {
   unit: string;
@@ -18,7 +31,7 @@ export type OrderRecord = {
   customerName: string;
   phone: string;
   address: string;
-  region: "A" | "B" | "C";
+  region: DeliveryZone;
   city: string;
   customerLocation: { lat: number; lng: number };
   paymentMethod: PaymentMethod;
@@ -41,6 +54,7 @@ export type QuotationRecord = {
   phone: string;
   email: string;
   city: string;
+  customerLocation: { lat: number; lng: number };
   physicalAddress: string;
   requiredDate: string;
   serviceArea: DeliveryZone;
@@ -54,7 +68,18 @@ export type QuotationRecord = {
   }>;
   subtotal: number;
   deliveryFee: number;
+  discountAmount?: number;
   total: number;
+  adminAdjustedAt?: string;
+  createdAt: string;
+};
+
+export type CustomerRecord = {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  phone?: string;
   createdAt: string;
 };
 
@@ -131,6 +156,14 @@ export class HardwareDatabase {
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         data TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        passwordHash TEXT NOT NULL,
+        phone TEXT,
+        createdAt TEXT NOT NULL
       );
     `);
 
@@ -251,6 +284,25 @@ export class HardwareDatabase {
     return (result[0]?.values ?? []).map((row: unknown[]) => JSON.parse(String(row[0])) as QuotationRecord);
   }
 
+  getQuotation(id: string): QuotationRecord | undefined {
+    return this.listQuotations().find((quotation) => quotation.quotationId === id);
+  }
+
+  async updateQuotation(quotation: QuotationRecord): Promise<void> {
+    this.db.run("UPDATE quotations SET data = ? WHERE id = ?", [JSON.stringify(quotation), quotation.quotationId]);
+    await this.persist();
+  }
+
+  async deleteQuotation(id: string): Promise<boolean> {
+    const existing = this.getQuotation(id);
+    if (!existing) {
+      return false;
+    }
+    this.db.run("DELETE FROM quotations WHERE id = ?", [id]);
+    await this.persist();
+    return true;
+  }
+
   async saveOrder(order: OrderRecord): Promise<void> {
     this.db.run("INSERT INTO orders (id, data) VALUES (?, ?)", [order.id, JSON.stringify(order)]);
     await this.persist();
@@ -268,5 +320,61 @@ export class HardwareDatabase {
   async updateOrder(order: OrderRecord): Promise<void> {
     this.db.run("UPDATE orders SET data = ? WHERE id = ?", [JSON.stringify(order), order.id]);
     await this.persist();
+  }
+
+  getCustomerByEmail(email: string): CustomerRecord | undefined {
+    const stmt = this.db.prepare("SELECT * FROM customers WHERE LOWER(email) = LOWER(?) LIMIT 1");
+    stmt.bind([email]);
+    if (!stmt.step()) {
+      stmt.free();
+      return undefined;
+    }
+    const row = stmt.getAsObject() as unknown as Record<string, string | null>;
+    stmt.free();
+    return {
+      id: String(row.id),
+      name: String(row.name),
+      email: String(row.email),
+      passwordHash: String(row.passwordHash),
+      phone: row.phone ? String(row.phone) : undefined,
+      createdAt: String(row.createdAt)
+    };
+  }
+
+  getCustomerById(id: string): CustomerRecord | undefined {
+    const stmt = this.db.prepare("SELECT * FROM customers WHERE id = ? LIMIT 1");
+    stmt.bind([id]);
+    if (!stmt.step()) {
+      stmt.free();
+      return undefined;
+    }
+    const row = stmt.getAsObject() as unknown as Record<string, string | null>;
+    stmt.free();
+    return {
+      id: String(row.id),
+      name: String(row.name),
+      email: String(row.email),
+      passwordHash: String(row.passwordHash),
+      phone: row.phone ? String(row.phone) : undefined,
+      createdAt: String(row.createdAt)
+    };
+  }
+
+  async createCustomer(input: { name: string; email: string; passwordHash: string; phone?: string }): Promise<CustomerRecord> {
+    const id = `cus_${Date.now()}`;
+    const createdAt = new Date().toISOString();
+    this.db.run(
+      "INSERT INTO customers (id, name, email, passwordHash, phone, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+      [id, input.name, input.email, input.passwordHash, input.phone ?? null, createdAt]
+    );
+    await this.persist();
+    return {
+      id,
+      name: input.name,
+      email: input.email,
+      passwordHash: input.passwordHash,
+      phone: input.phone,
+      createdAt
+    };
   }
 }
