@@ -1,0 +1,10 @@
+{
+  "name": "@hardware/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"Mobile app scaffold ready. Integrate with Expo/React Native runtime next.\"",
+    "build": "echo \"No build configured yet\"",
+    "lint": "echo \"No lint configured for mobile\""
+  }
+}
