@@ -26,9 +26,14 @@ function saveCredentials(username: string, password: string) {
   fs.writeFileSync(credentialsFile, JSON.stringify({ username, password }, null, 2));
 }
 
-const savedCredentials = loadCredentials();
-const adminUsername = savedCredentials?.username ?? process.env.ADMIN_USERNAME ?? "admin";
-const adminPassword = savedCredentials?.password ?? process.env.ADMIN_PASSWORD ?? "Synapse@2026";
+function getAdminCreds() {
+  const saved = loadCredentials();
+  return {
+    username: saved?.username ?? process.env.ADMIN_USERNAME ?? "admin",
+    password: saved?.password ?? process.env.ADMIN_PASSWORD ?? "Synapse@2026"
+  };
+}
+
 const sessionCookieName = "synapse_admin_session";
 const sessionSecret = process.env.ADMIN_SESSION_SECRET ?? "synapse-admin-secret";
 
@@ -67,7 +72,7 @@ function verifySessionToken(token: string): boolean {
     const [username, timestamp, signature] = parts;
     const payload = `${username}:${timestamp}`;
     const expected = crypto.createHmac("sha256", sessionSecret).update(payload).digest("hex");
-    return signature === expected && username === adminUsername;
+    return signature === expected && username === getAdminCreds().username;
   } catch {
     return false;
   }
@@ -109,6 +114,8 @@ function renderLoginPage(errorMessage = ""): string {
 }
 
 function renderAdminPage(): string {
+  const { username: credUser, password: credPass } = getAdminCreds();
+  const adminApiKey = (process.env.ADMIN_API_KEY ?? "").trim();
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -285,8 +292,9 @@ function renderAdminPage(): string {
   </main>
   <script>
     const apiBase = "${process.env.API_BASE_URL ?? "http://localhost:4000"}";
-    const adminApiUsername = ${JSON.stringify(adminUsername)};
-    const adminApiPassword = ${JSON.stringify(adminPassword)};
+    const adminApiKeyValue = ${JSON.stringify(adminApiKey)};
+    const adminApiUsername = ${JSON.stringify(credUser)};
+    const adminApiPassword = ${JSON.stringify(credPass)};
     const dashboardStatus = document.getElementById("dashboardStatus");
     const productForm = document.getElementById("productForm");
     const editProductForm = document.getElementById("editProductForm");
@@ -310,6 +318,12 @@ function renderAdminPage(): string {
     }
 
     function getAdminAuthHeaders(extraHeaders = {}) {
+      if (adminApiKeyValue) {
+        return {
+          ...extraHeaders,
+          Authorization: "Bearer " + adminApiKeyValue
+        };
+      }
       return {
         ...extraHeaders,
         "x-admin-username": adminApiUsername,
@@ -318,10 +332,16 @@ function renderAdminPage(): string {
     }
 
     async function apiFetch(path, options = {}) {
+      const { headers: optHeaders = {}, ...rest } = options;
+      const method = String(rest.method || "GET").toUpperCase();
+      const merged = { ...(optHeaders || {}) };
+      if (!["GET", "HEAD", "DELETE"].includes(method) && merged["Content-Type"] === undefined) {
+        merged["Content-Type"] = "application/json";
+      }
       const response = await fetch(apiBase + path, {
         credentials: "include",
-        headers: getAdminAuthHeaders({ "Content-Type": "application/json", ...(options.headers || {}) }),
-        ...options
+        headers: getAdminAuthHeaders(merged),
+        ...rest
       });
 
       if (!response.ok) {
@@ -664,8 +684,8 @@ function renderAdminPage(): string {
         });
         await loadDashboard();
         showStatus("Product deleted successfully.");
-      } catch {
-        showStatus("Could not delete product. Please try again.");
+      } catch (error) {
+        showStatus("Could not delete product. " + (error && error.message ? error.message : "Please try again."));
       }
     });
 
@@ -738,7 +758,8 @@ app.get("/", (req, res) => {
 
 app.post("/login", (req, res) => {
   const { username, password } = req.body as { username?: string; password?: string };
-  if (username !== adminUsername || password !== adminPassword) {
+  const expected = getAdminCreds();
+  if (username !== expected.username || password !== expected.password) {
     res.status(401).type("html").send(renderLoginPage("Invalid username or password."));
     return;
   }

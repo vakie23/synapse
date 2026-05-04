@@ -9,10 +9,15 @@ import path from "node:path";
 import busboy from "busboy";
 
 const app = express();
-const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : ["http://localhost:3000", "http://localhost:3200"];
+const allowedOriginsRaw = process.env.CORS_ORIGINS ?? "";
+const allowedOrigins = allowedOriginsRaw
+  ? allowedOriginsRaw.split(",").map((o) => o.trim()).filter(Boolean)
+  : ["http://localhost:3000", "http://localhost:3200"];
 app.use(cors({
   origin: allowedOrigins,
-  credentials: true
+  credentials: true,
+  methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-username", "x-admin-password", "x-admin-api-key"]
 }));
 app.use(express.json());
 
@@ -64,9 +69,17 @@ function saveCredentials(username: string, password: string) {
   fs.writeFileSync(credentialsFile, JSON.stringify({ username, password }, null, 2));
 }
 
-const savedCredentials = loadCredentials();
-const getAdminUsername = () => savedCredentials?.username ?? adminUsername;
-const getAdminPassword = () => savedCredentials?.password ?? process.env.ADMIN_PASSWORD ?? "Synapse@2026";
+/** Read credentials from disk on each check so admin updates apply without API restart. */
+function getAdminUsername(): string {
+  const saved = loadCredentials();
+  return saved?.username ?? adminUsername;
+}
+function getAdminPassword(): string {
+  const saved = loadCredentials();
+  return saved?.password ?? process.env.ADMIN_PASSWORD ?? "Synapse@2026";
+}
+
+const adminApiKey = process.env.ADMIN_API_KEY?.trim();
 
 const companyProfile = {
   companyName: "Synapse Engineering",
@@ -174,11 +187,22 @@ function getCurrentCustomer(req: express.Request) {
 }
 
 function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  if (adminApiKey) {
+    const auth = String(req.headers.authorization ?? "");
+    const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+    const headerKey = String(req.headers["x-admin-api-key"] ?? "").trim();
+    if (bearer === adminApiKey || headerKey === adminApiKey) {
+      next();
+      return;
+    }
+  }
+
   const token = parseCookies(req.headers.cookie)[sessionCookieName];
   const headerUsername = String(req.headers["x-admin-username"] ?? "");
   const headerPassword = String(req.headers["x-admin-password"] ?? "");
+  const cookieOk = Boolean(token && verifySessionToken(token));
   const headerAuthOk = headerUsername === getAdminUsername() && headerPassword === getAdminPassword();
-  if ((!token || !verifySessionToken(token)) && !headerAuthOk) {
+  if (!cookieOk && !headerAuthOk) {
     res.status(401).json({ message: "Admin authentication required" });
     return;
   }
