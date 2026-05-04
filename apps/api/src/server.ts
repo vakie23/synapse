@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import cors from "cors";
 import express from "express";
 import { z } from "zod";
-import type { PaymentMethod } from "../../packages/shared/src/index.js";
+import type { PaymentMethod } from "@hardware/shared";
 import { HardwareDatabase, type DeliveryZone, type OrderRecord, type QuotationRecord } from "./db.js";
 import fs from "node:fs";
 import path from "node:path";

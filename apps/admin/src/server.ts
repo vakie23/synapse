@@ -278,56 +278,33 @@ function renderAdminPage(): string {
     function renderProducts(products: any[]) {
       document.getElementById("productCount").textContent = String(products.length);
       document.getElementById("productsList").innerHTML = products.map((product: any) => {
+        const img = product.imageUrl ? '<img src="' + product.imageUrl + '" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />' : '';
         const escapedName = product.name.replace(/'/g, "\\'");
-        return `
-        <article class="item">
-          ${product.imageUrl ? `<img src="${product.imageUrl}" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />` : ''}
-          <h3>${product.name}</h3>
-          <div class="muted">${product.category}</div>
-          <div>Price: <strong>$${Number(product.price).toFixed(2)}</strong></div>
-          <div>Stock: <strong>${product.stock}</strong></div>
-          <div class="muted">${product.description}</div>
-          <div style="margin-top:0.5rem;">
-            <button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm('${product.id}', '${escapedName}')">Edit</button>
-          </div>
-        </article>
-      `}).join("");
+        return '<article class="item">' + img + '<h3>' + product.name + '</h3><div class="muted">' + product.category + '</div><div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div><div>Stock: <strong>' + product.stock + '</strong></div><div class="muted">' + product.description + '</div><div style="margin-top:0.5rem;"><button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm(' + "'" + product.id + "'" + ', ' + "'" + escapedName + "'" + ')">Edit</button></div></article>';
+      }).join("");
     }
 
-    function renderQuotations(quotations) {
+    function renderQuotations(quotations: any[]) {
       document.getElementById("quotationCount").textContent = String(quotations.length);
-      document.getElementById("quotationsList").innerHTML = quotations.length ? quotations.map((quotation) => \`
-        <article class="item">
-          <div class="split">
-            <h3>\${quotation.customerName}</h3>
-            <strong>$\${Number(quotation.total).toFixed(2)}</strong>
-          </div>
-          <div class="muted">Quotation ID: \${quotation.quotationId}</div>
-          <div>Email: \${quotation.email}</div>
-          <div>Phone: \${quotation.phone}</div>
-          <div>Required date: \${quotation.requiredDate}</div>
-          <div>Address: \${quotation.physicalAddress}</div>
-          <div>Items: \${quotation.lines.map((line) => line.name + " x" + line.quantity).join(", ")}</div>
-        </article>
-      \`).join("") : '<div class="muted">No quotations yet.</div>';
+      if (!quotations.length) {
+        document.getElementById("quotationsList").innerHTML = '<div class="muted">No quotations yet.</div>';
+        return;
+      }
+      document.getElementById("quotationsList").innerHTML = quotations.map((quotation: any) => {
+        return '<article class="item"><div class="split"><h3>' + quotation.customerName + '</h3><strong>$' + Number(quotation.total).toFixed(2) + '</strong></div><div class="muted">Quotation ID: ' + quotation.quotationId + '</div><div>Email: ' + quotation.email + '</div><div>Phone: ' + quotation.phone + '</div><div>Required date: ' + quotation.requiredDate + '</div><div>Address: ' + quotation.physicalAddress + '</div><div>Items: ' + quotation.lines.map((line: any) => line.name + ' x' + line.quantity).join(', ') + '</div></article>';
+      }).join("");
     }
 
-    function renderOrders(orders) {
+    function renderOrders(orders: any[]) {
       document.getElementById("orderCount").textContent = String(orders.length);
-      document.getElementById("ordersList").innerHTML = orders.length ? orders.map((order) => \`
-        <article class="item">
-          <div class="split">
-            <h3>\${order.customerName}</h3>
-            <strong>\${order.status}</strong>
-          </div>
-          <div class="muted">Order ID: \${order.id}</div>
-          <div>Phone: \${order.phone}</div>
-          <div>City: \${order.city}</div>
-          <div>Address: \${order.address}</div>
-          <div>Total: <strong>$\${Number(order.total).toFixed(2)}</strong></div>
-          <div>Tracking stage: \${order.tracking.stage}</div>
-          <div>Current location: \${order.tracking.currentLocation}</div>
-        </article>
+      if (!orders.length) {
+        document.getElementById("ordersList").innerHTML = '<div class="muted">No orders yet.</div>';
+        return;
+      }
+      document.getElementById("ordersList").innerHTML = orders.map((order: any) => {
+        return '<article class="item"><div class="split"><h3>' + order.customerName + '</h3><strong>' + order.status + '</strong></div><div class="muted">Order ID: ' + order.id + '</div><div>Phone: ' + order.phone + '</div><div>City: ' + order.city + '</div><div>Address: ' + order.address + '</div><div>Total: <strong>$' + Number(order.total).toFixed(2) + '</strong></div><div>Tracking stage: ' + order.tracking.stage + '</div><div>Current location: ' + order.tracking.currentLocation + '</div></article>';
+      }).join("");
+    }
       \`).join("") : '<div class="muted">No orders yet.</div>';
     }
 
