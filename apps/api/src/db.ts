@@ -61,6 +61,7 @@ export type QuotationRecord = {
   lines: Array<{
     productId: string;
     name: string;
+    imageUrl?: string;
     quantity: number;
     unit: string;
     unitPrice: number;

@@ -349,6 +349,7 @@ app.post("/api/quotation", async (req, res) => {
     return {
       productId: product.id,
       name: product.name,
+      imageUrl: product.imageUrl,
       quantity: line.quantity,
       unit: product.unit,
       unitPrice: product.price,

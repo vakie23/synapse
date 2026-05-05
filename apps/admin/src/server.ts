@@ -419,6 +419,16 @@ function renderAdminPage(): string {
         const lng = Number(location.lng);
         const hasLocation = Number.isFinite(lat) && Number.isFinite(lng);
         const mapLink = hasLocation ? ('<div><a class="primary" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps?q=' + lat + ',' + lng + '">Open customer location</a></div>') : "";
+        const renderedItems = quotation.lines.map((line) => {
+          const lineImage = line.imageUrl
+            ? ('<img src="' + line.imageUrl + '" alt="' + line.name + '" style="width:48px;height:48px;object-fit:cover;border-radius:0.35rem;" />')
+            : '<div style="width:48px;height:48px;border-radius:0.35rem;background:#f3f4f6;"></div>';
+          return '<div class="split" style="gap:0.65rem;align-items:center;justify-content:flex-start;margin-top:0.45rem;">' +
+            lineImage +
+            '<div><div><strong>' + line.name + '</strong> x' + line.quantity + '</div><div class="muted">$' + Number(line.unitPrice).toFixed(2) + ' each</div></div>' +
+          '</div>';
+        }).join("");
+
         return '<article class="item">' +
           '<div class="split"><h3>' + quotation.customerName + '</h3><strong>$' + Number(quotation.total).toFixed(2) + '</strong></div>' +
           '<div class="muted">Quotation ID: ' + quotation.quotationId + '</div>' +
@@ -429,7 +439,7 @@ function renderAdminPage(): string {
           '<div>Address: ' + quotation.physicalAddress + '</div>' +
           '<div>Coordinates: ' + (hasLocation ? (lat.toFixed(5) + ", " + lng.toFixed(5)) : "N/A") + '</div>' +
           mapLink +
-          '<div>Items: ' + quotation.lines.map((line) => line.name + ' x' + line.quantity).join(', ') + '</div>' +
+          '<div style="margin-top:0.5rem;"><strong>Items</strong>' + renderedItems + '</div>' +
           '<div>Subtotal: <strong>$' + Number(quotation.subtotal).toFixed(2) + '</strong></div>' +
           '<div>Estimated delivery: <strong>$' + Number(quotation.deliveryFee).toFixed(2) + '</strong></div>' +
           '<div>Discount: <strong>$' + discountAmount.toFixed(2) + '</strong></div>' +
