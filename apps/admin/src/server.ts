@@ -216,7 +216,7 @@ function renderAdminPage(): string {
         <summary>Edit Product</summary>
         <h2>Edit Product</h2>
         <form id="editProductForm" class="stack">
-          <input name="productId" placeholder="Product ID" required />
+          <input name="productId" type="hidden" required />
           <input name="name" placeholder="Product name" />
           <input name="category" placeholder="Category" />
           <input name="price" type="number" min="0.01" step="0.01" placeholder="Price" />
