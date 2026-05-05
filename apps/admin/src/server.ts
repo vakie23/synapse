@@ -212,7 +212,7 @@ function renderAdminPage(): string {
           <button class="primary" type="submit">Save product</button>
         </form>
       </details>
-      <details class="panel collapsible">
+      <details id="editProductPanel" class="panel collapsible">
         <summary>Edit Product</summary>
         <h2>Edit Product</h2>
         <form id="editProductForm" class="stack">
@@ -307,9 +307,26 @@ function renderAdminPage(): string {
     let allProducts = [];
     let allQuotations = [];
 
-    function populateEditForm(productId, productName) {
-      document.getElementById("editProductForm").elements["productId"].value = productId;
-      showStatus("Select fields to update for: " + productName);
+    function populateEditForm(product) {
+      if (!product || !product.id) {
+        showStatus("Could not load that product for editing. Refresh and try again.");
+        return;
+      }
+      const form = document.getElementById("editProductForm");
+      form.elements["productId"].value = String(product.id);
+      form.elements["name"].value = String(product.name || "");
+      form.elements["category"].value = String(product.category || "");
+      form.elements["price"].value = String(product.price ?? "");
+      form.elements["stock"].value = String(product.stock ?? "");
+      form.elements["description"].value = String(product.description || "");
+
+      const editPanel = document.getElementById("editProductPanel");
+      if (editPanel instanceof HTMLDetailsElement) {
+        editPanel.open = true;
+        editPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      showStatus("Editing product: " + String(product.name || product.id));
     }
 
     function showStatus(message) {
@@ -377,8 +394,7 @@ function renderAdminPage(): string {
       }
       document.getElementById("productsList").innerHTML = filtered.map((product) => {
         const img = product.imageUrl ? '<img src="' + product.imageUrl + '" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />' : '';
-        const escapedName = product.name.replace(/'/g, "\\'");
-        return '<article class="item">' + img + '<h3>' + product.name + '</h3><div class="muted">' + product.category + '</div><div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div><div>Stock: <strong>' + product.stock + '</strong></div><div class="muted">' + product.description + '</div><div class="actions" style="margin-top:0.5rem;"><button class="secondary" style="padding:0.5rem 0.75rem;font-size:0.9rem;" onclick="populateEditForm(' + "'" + product.id + "'" + ', ' + "'" + escapedName + "'" + ')">Edit</button><button class="secondary product-delete-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Delete</button></div></article>';
+        return '<article class="item">' + img + '<h3>' + product.name + '</h3><div class="muted">' + product.category + '</div><div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div><div>Stock: <strong>' + product.stock + '</strong></div><div class="muted">' + product.description + '</div><div class="actions" style="margin-top:0.5rem;"><button class="secondary product-edit-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Edit</button><button class="secondary product-delete-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Delete</button></div></article>';
       }).join("");
     }
 
@@ -662,12 +678,25 @@ function renderAdminPage(): string {
       if (!(target instanceof Element)) {
         return;
       }
-      const button = target.closest(".product-delete-btn");
-      if (!(button instanceof HTMLElement)) {
+
+      const editButton = target.closest(".product-edit-btn");
+      if (editButton instanceof HTMLElement) {
+        const editProductId = editButton.getAttribute("data-product-id");
+        const product = allProducts.find((item) => item.id === editProductId);
+        if (!product) {
+          showStatus("Could not find that product. Refresh and try again.");
+          return;
+        }
+        populateEditForm(product);
         return;
       }
 
-      const productId = button.getAttribute("data-product-id");
+      const deleteButton = target.closest(".product-delete-btn");
+      if (!(deleteButton instanceof HTMLElement)) {
+        return;
+      }
+
+      const productId = deleteButton.getAttribute("data-product-id");
       if (!productId) {
         showStatus("Missing product ID. Refresh and try again.");
         return;
