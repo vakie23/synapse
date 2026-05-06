@@ -94,6 +94,8 @@ function renderLoginPage(errorMessage = ""): string {
     button { width: 100%; padding: 0.9rem; border: 0; border-radius: 0.5rem; background: #241c7a; color: white; font-weight: 700; cursor: pointer; }
     .error { background: #fff1f1; color: #b32025; padding: 0.8rem; border-radius: 0.5rem; margin-bottom: 1rem; }
     .hint { color: #555; font-size: 0.95rem; }
+    .password-toggle { display: flex; align-items: center; gap: 0.5rem; margin: -0.25rem 0 1rem; font-size: 0.92rem; color: #333; }
+    .password-toggle input { width: auto; margin: 0; }
   </style>
 </head>
 <body>
@@ -106,9 +108,22 @@ function renderLoginPage(errorMessage = ""): string {
       <input id="username" name="username" required />
       <label for="password">Password</label>
       <input id="password" name="password" type="password" required />
+      <label class="password-toggle" for="showPassword">
+        <input id="showPassword" type="checkbox" />
+        <span>Show password</span>
+      </label>
       <button type="submit">Sign in</button>
     </form>
   </main>
+  <script>
+    const passwordInput = document.getElementById("password");
+    const showPasswordInput = document.getElementById("showPassword");
+    if (passwordInput && showPasswordInput) {
+      showPasswordInput.addEventListener("change", () => {
+        passwordInput.type = showPasswordInput.checked ? "text" : "password";
+      });
+    }
+  </script>
 </body>
 </html>`;
 }
@@ -212,20 +227,6 @@ function renderAdminPage(): string {
           <button class="primary" type="submit">Save product</button>
         </form>
       </details>
-      <details id="editProductPanel" class="panel collapsible">
-        <summary>Edit Product</summary>
-        <h2>Edit Product</h2>
-        <form id="editProductForm" class="stack">
-          <input name="productId" type="hidden" required />
-          <input name="name" placeholder="Product name" />
-          <input name="category" placeholder="Category" />
-          <input name="price" type="number" min="0.01" step="0.01" placeholder="Price" />
-          <input name="stock" type="number" min="0" step="1" placeholder="Stock quantity" />
-          <textarea name="description" rows="3" placeholder="Description"></textarea>
-          <input name="image" type="file" accept="image/*" placeholder="Product image (optional)" />
-          <button class="primary" type="submit">Update product</button>
-        </form>
-      </details>
       <details class="panel collapsible">
         <summary>Update Delivery Status</summary>
         <h2>Update Delivery Status</h2>
@@ -297,7 +298,6 @@ function renderAdminPage(): string {
     const adminApiPassword = ${JSON.stringify(credPass)};
     const dashboardStatus = document.getElementById("dashboardStatus");
     const productForm = document.getElementById("productForm");
-    const editProductForm = document.getElementById("editProductForm");
     const statusForm = document.getElementById("statusForm");
     const credentialsForm = document.getElementById("credentialsForm");
     const productSearchInput = document.getElementById("productSearch");
@@ -307,31 +307,18 @@ function renderAdminPage(): string {
     let allProducts = [];
     let allQuotations = [];
 
-    function populateEditForm(product) {
-      if (!product || !product.id) {
-        showStatus("Could not load that product for editing. Refresh and try again.");
-        return;
-      }
-      const form = document.getElementById("editProductForm");
-      form.elements["productId"].value = String(product.id);
-      form.elements["name"].value = String(product.name || "");
-      form.elements["category"].value = String(product.category || "");
-      form.elements["price"].value = String(product.price ?? "");
-      form.elements["stock"].value = String(product.stock ?? "");
-      form.elements["description"].value = String(product.description || "");
-
-      const editPanel = document.getElementById("editProductPanel");
-      if (editPanel instanceof HTMLDetailsElement) {
-        editPanel.open = true;
-        editPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-
-      showStatus("Editing product: " + String(product.name || product.id));
-    }
-
     function showStatus(message) {
       dashboardStatus.hidden = false;
       dashboardStatus.textContent = message;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     function getAdminAuthHeaders(extraHeaders = {}) {
@@ -394,7 +381,30 @@ function renderAdminPage(): string {
       }
       document.getElementById("productsList").innerHTML = filtered.map((product) => {
         const img = product.imageUrl ? '<img src="' + product.imageUrl + '" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />' : '';
-        return '<article class="item">' + img + '<h3>' + product.name + '</h3><div class="muted">' + product.category + '</div><div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div><div>Stock: <strong>' + product.stock + '</strong></div><div class="muted">' + product.description + '</div><div class="actions" style="margin-top:0.5rem;"><button class="secondary product-edit-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Edit</button><button class="secondary product-delete-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Delete</button></div></article>';
+        return '<article class="item" data-product-item="' + product.id + '">' +
+          img +
+          '<h3>' + product.name + '</h3>' +
+          '<div class="muted">' + product.category + '</div>' +
+          '<div>Price: <strong>$' + Number(product.price).toFixed(2) + '</strong></div>' +
+          '<div>Stock: <strong>' + product.stock + '</strong></div>' +
+          '<div class="muted">' + product.description + '</div>' +
+          '<div class="actions" style="margin-top:0.5rem;">' +
+            '<button class="secondary product-edit-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Edit</button>' +
+            '<button class="secondary product-delete-btn" data-product-id="' + product.id + '" type="button" style="padding:0.5rem 0.75rem;font-size:0.9rem;">Delete</button>' +
+          '</div>' +
+          '<form class="product-inline-edit-form stack hidden" data-product-id="' + product.id + '" style="margin-top:0.75rem;">' +
+            '<input name="name" value="' + escapeHtml(product.name) + '" placeholder="Product name" required />' +
+            '<input name="category" value="' + escapeHtml(product.category) + '" placeholder="Category" required />' +
+            '<input name="price" type="number" min="0.01" step="0.01" value="' + Number(product.price).toFixed(2) + '" placeholder="Price" required />' +
+            '<input name="stock" type="number" min="0" step="1" value="' + Number(product.stock) + '" placeholder="Stock quantity" required />' +
+            '<textarea name="description" rows="3" placeholder="Description" required>' + escapeHtml(product.description) + '</textarea>' +
+            '<input name="image" type="file" accept="image/*" />' +
+            '<div class="actions">' +
+              '<button class="primary" type="submit">Update product</button>' +
+              '<button class="secondary product-edit-cancel-btn" type="button">Cancel</button>' +
+            '</div>' +
+          '</form>' +
+        '</article>';
       }).join("");
     }
 
@@ -564,36 +574,6 @@ function renderAdminPage(): string {
       }
     });
 
-    editProductForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const formData = new FormData(editProductForm);
-      const productId = String(formData.get("productId"));
-      
-      if (!productId) {
-        showStatus("Please enter a product ID.");
-        return;
-      }
-
-      try {
-        const response = await fetch(apiBase + "/api/admin/products/" + encodeURIComponent(productId), {
-          method: "PATCH",
-          credentials: "include",
-          headers: getAdminAuthHeaders(),
-          body: formData
-        });
-
-        if (response.ok) {
-          editProductForm.reset();
-          await loadDashboard();
-          showStatus("Product updated successfully.");
-        } else {
-          showStatus("Could not update product. Please check the product ID and try again.");
-        }
-      } catch {
-        showStatus("Could not update product. Please try again.");
-      }
-    });
-
     statusForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const formData = new FormData(statusForm);
@@ -692,12 +672,28 @@ function renderAdminPage(): string {
       const editButton = target.closest(".product-edit-btn");
       if (editButton instanceof HTMLElement) {
         const editProductId = editButton.getAttribute("data-product-id");
-        const product = allProducts.find((item) => item.id === editProductId);
-        if (!product) {
-          showStatus("Could not find that product. Refresh and try again.");
+        if (!editProductId) {
+          showStatus("Missing product ID. Refresh and try again.");
           return;
         }
-        populateEditForm(product);
+        const allEditForms = document.querySelectorAll(".product-inline-edit-form");
+        allEditForms.forEach((form) => {
+          if (!(form instanceof HTMLElement)) return;
+          if (form.getAttribute("data-product-id") === editProductId) {
+            form.classList.toggle("hidden");
+          } else {
+            form.classList.add("hidden");
+          }
+        });
+        return;
+      }
+
+      const cancelEditButton = target.closest(".product-edit-cancel-btn");
+      if (cancelEditButton instanceof HTMLElement) {
+        const editForm = cancelEditButton.closest(".product-inline-edit-form");
+        if (editForm instanceof HTMLElement) {
+          editForm.classList.add("hidden");
+        }
         return;
       }
 
@@ -725,6 +721,39 @@ function renderAdminPage(): string {
         showStatus("Product deleted successfully.");
       } catch (error) {
         showStatus("Could not delete product. " + (error && error.message ? error.message : "Please try again."));
+      }
+    });
+
+    document.getElementById("productsList").addEventListener("submit", async (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !form.classList.contains("product-inline-edit-form")) {
+        return;
+      }
+      event.preventDefault();
+
+      const productId = form.getAttribute("data-product-id");
+      if (!productId) {
+        showStatus("Missing product ID. Refresh and try again.");
+        return;
+      }
+
+      const formData = new FormData(form);
+      try {
+        const response = await fetch(apiBase + "/api/admin/products/" + encodeURIComponent(productId), {
+          method: "PATCH",
+          credentials: "include",
+          headers: getAdminAuthHeaders(),
+          body: formData
+        });
+
+        if (response.ok) {
+          await loadDashboard();
+          showStatus("Product updated successfully.");
+        } else {
+          showStatus("Could not update product. Please check the values and try again.");
+        }
+      } catch {
+        showStatus("Could not update product. Please try again.");
       }
     });
 
