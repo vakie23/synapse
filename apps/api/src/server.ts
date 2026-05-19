@@ -22,13 +22,15 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serve static images
+// Catalog photos live outside apps/api/data so Render's persistent disk does not hide them.
 const apiRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const imagesDir = path.join(apiRoot, "data", "images");
-if (!fs.existsSync(imagesDir)) {
-  fs.mkdirSync(imagesDir, { recursive: true });
+const catalogImagesDir = path.join(apiRoot, "catalog-images");
+const uploadImagesDir = path.join(apiRoot, "data", "images");
+if (!fs.existsSync(uploadImagesDir)) {
+  fs.mkdirSync(uploadImagesDir, { recursive: true });
 }
-app.use("/images", express.static(imagesDir));
+app.use("/images", express.static(catalogImagesDir));
+app.use("/images", express.static(uploadImagesDir));
 
 
 const db = new HardwareDatabase();
@@ -582,7 +584,7 @@ app.post("/api/admin/products", requireAdminAuth, async (req, res) => {
     if (imageBuffer && imageMime) {
       const ext = imageMime.split("/")[1] || "jpg";
       const filename = `product_${Date.now()}.${ext}`;
-      const filepath = path.join(imagesDir, filename);
+      const filepath = path.join(uploadImagesDir, filename);
       fs.writeFileSync(filepath, imageBuffer);
       imageUrl = `/images/${filename}`;
     }
@@ -618,7 +620,7 @@ app.patch("/api/admin/products/:id", requireAdminAuth, async (req, res) => {
     if (imageBuffer && imageMime) {
       const ext = imageMime.split("/")[1] || "jpg";
       const filename = `product_${Date.now()}.${ext}`;
-      const filepath = path.join(imagesDir, filename);
+      const filepath = path.join(uploadImagesDir, filename);
       fs.writeFileSync(filepath, imageBuffer);
       imageUrl = `/images/${filename}`;
     }
@@ -673,8 +675,11 @@ app.post("/api/admin/credentials", requireAdminAuth, (req, res) => {
 
 const port = Number(process.env.PORT ?? 4000);
 db.init().then(() => {
+  const catalogCount = fs.existsSync(catalogImagesDir)
+    ? fs.readdirSync(catalogImagesDir).filter((name) => /^product_p\d+\.(jpg|png)$/i.test(name)).length
+    : 0;
   app.listen(port, () => {
-    console.log(`API running on http://localhost:${port}`);
+    console.log(`API running on http://localhost:${port} (${catalogCount} catalog images)`);
   });
 }).catch((error) => {
   console.error("Failed to initialize database", error);
