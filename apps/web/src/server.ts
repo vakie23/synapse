@@ -1,11 +1,13 @@
 ﻿import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createAdminRouter } from "@hardware/admin/router";
+// @ts-expect-error Admin router is built by the @hardware/admin workspace package.
+import { createAdminRouter } from "../../admin/dist/router.js";
 
 const app = express();
 const webRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 app.use(express.static(path.join(webRoot, "public")));
+app.get("/admin", (_req, res) => res.redirect(301, "/admin/"));
 app.use("/admin", createAdminRouter("/admin"));
 
 const logoUrl = process.env.LOGO_URL ?? "";
@@ -65,8 +67,11 @@ app.get("/", (_req, res) => {
     .hero-overlay h1 { margin: 0 0 0.35rem; font-size: clamp(1.45rem, 4vw, 2.15rem); font-weight: 700; max-width: 36rem; }
     .hero-overlay .tagline { margin: 0 0 0.75rem; color: var(--brand-gold); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; }
     .hero-overlay .intro { margin: 0; max-width: 38rem; font-size: clamp(0.95rem, 2.5vw, 1.05rem); opacity: 0.96; line-height: 1.65; }
+    .menu-fab-wrap {
+      position: fixed; top: 0.85rem; right: 0.85rem; z-index: 300;
+      display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+    }
     .menu-fab {
-      position: fixed; top: 1rem; right: 1rem; z-index: 300;
       width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 0.55rem;
       border: 1px solid #d8dbf0; background: rgba(255, 255, 255, 0.96);
       box-shadow: 0 8px 24px rgba(36, 28, 122, 0.18); cursor: pointer;
@@ -75,9 +80,14 @@ app.get("/", (_req, res) => {
     }
     .menu-fab:hover { background: #fff; border-color: var(--brand-gold); }
     .menu-fab[aria-expanded="true"] { background: var(--brand-blue); color: #fff; border-color: var(--brand-blue); }
+    .menu-fab-label {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--brand-blue); background: rgba(255, 255, 255, 0.92); padding: 0.1rem 0.45rem;
+      border-radius: 0.35rem; border: 1px solid #e4e6f5; line-height: 1.2;
+    }
     .menu-dots { font-size: 1.35rem; line-height: 1; letter-spacing: 0.05em; font-weight: 700; }
     .corner-menu {
-      position: fixed; top: 4.25rem; right: 1rem; z-index: 299;
+      position: fixed; top: 5.1rem; right: 1rem; z-index: 299;
       width: min(360px, calc(100vw - 2rem)); max-height: calc(100vh - 5.5rem); overflow-y: auto;
       padding: 0.65rem; border-radius: 1rem;
       background: rgba(255, 255, 255, 0.98); border: 2px solid var(--brand-gold);
@@ -96,8 +106,8 @@ app.get("/", (_req, res) => {
     }
     .accordion-list { display: grid; gap: 0.55rem; }
     @media (max-width: 720px) {
-      .corner-menu { top: 4rem; right: 0.75rem; left: auto; width: min(360px, calc(100vw - 1.5rem)); }
-      .menu-fab { top: 0.75rem; right: 0.75rem; }
+      .corner-menu { top: 4.85rem; right: 0.75rem; left: auto; width: min(360px, calc(100vw - 1.5rem)); }
+      .menu-fab-wrap { top: 0.65rem; right: 0.65rem; }
     }
     .accordion { border: 1px solid #e4e6f5; border-radius: 0.85rem; background: #fff; box-shadow: 0 6px 20px rgba(36, 28, 122, 0.05); overflow: hidden; }
     .accordion[open] { box-shadow: 0 12px 32px rgba(36, 28, 122, 0.1); border-color: #d0d4f0; }
@@ -164,9 +174,12 @@ app.get("/", (_req, res) => {
       </div>
     </section>
 
-    <button type="button" class="menu-fab" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteMenu">
-      <span class="menu-dots" aria-hidden="true">⋯</span>
-    </button>
+    <div class="menu-fab-wrap">
+      <button type="button" class="menu-fab" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteMenu">
+        <span class="menu-dots" aria-hidden="true">⋯</span>
+      </button>
+      <span class="menu-fab-label">Menu</span>
+    </div>
     <aside class="corner-menu" id="siteMenu" aria-label="Site menu">
       <p class="corner-menu-title">Menu</p>
       <div class="accordion-list">
@@ -229,15 +242,19 @@ app.get("/", (_req, res) => {
           </div>
         </details>
       </div>
+      <p style="margin:0.65rem 0.25rem 0.15rem;text-align:center;font-size:0.8rem;">
+        <a href="/admin/" style="color:var(--brand-blue);font-weight:700;text-decoration:none;">Staff admin login</a>
+      </p>
     </aside>
 
     <footer class="site-footer">
-      <p>&copy; Synapse Engineering &mdash; <a href="mailto:synapseengineering@gmail.com">Contact</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a></p>
+      <p>&copy; Synapse Engineering &mdash; <a href="mailto:synapseengineering@gmail.com">Contact</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin/">Staff admin</a></p>
     </footer>
   </div>
   <script>
     const menuToggle = document.getElementById("menuToggle");
     const siteMenu = document.getElementById("siteMenu");
+    const menuWrap = document.querySelector(".menu-fab-wrap");
     menuToggle.addEventListener("click", (event) => {
       event.stopPropagation();
       const open = siteMenu.classList.toggle("is-open");
@@ -246,7 +263,7 @@ app.get("/", (_req, res) => {
     });
     document.addEventListener("click", (event) => {
       if (!siteMenu.classList.contains("is-open")) return;
-      if (siteMenu.contains(event.target) || menuToggle.contains(event.target)) return;
+      if (siteMenu.contains(event.target) || menuWrap.contains(event.target)) return;
       siteMenu.classList.remove("is-open");
       menuToggle.setAttribute("aria-expanded", "false");
       menuToggle.setAttribute("aria-label", "Open menu");
