@@ -6,6 +6,7 @@ import type { PaymentMethod } from "@hardware/shared";
 import { HardwareDatabase, type DeliveryZone, type OrderRecord, type QuotationRecord } from "./db.js";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import busboy from "busboy";
 
 const app = express();
@@ -22,7 +23,8 @@ app.use(cors({
 app.use(express.json());
 
 // Serve static images
-const imagesDir = path.join(process.cwd(), "data", "images");
+const apiRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const imagesDir = path.join(apiRoot, "data", "images");
 if (!fs.existsSync(imagesDir)) {
   fs.mkdirSync(imagesDir, { recursive: true });
 }

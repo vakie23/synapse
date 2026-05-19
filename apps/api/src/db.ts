@@ -84,27 +84,40 @@ export type CustomerRecord = {
   createdAt: string;
 };
 
+const productImageUrls: Record<string, string> = {
+  p1: "/images/product_p1.jpg",
+  p2: "/images/product_p2.jpg",
+  p3: "/images/product_p3.jpg",
+  p4: "/images/product_p4.jpg",
+  p5: "/images/product_p6.jpg",
+  p6: "/images/product_p5.jpg",
+  p11: "/images/product_p11.jpg",
+  p13: "/images/product_p13.jpg",
+  p19: "/images/product_p19.jpg",
+  p20: "/images/product_p20.png"
+};
+
 const seedProducts: CatalogProduct[] = [
-  { id: "p1", name: "19mm PVC Conduits", category: "Conduits and fittings", price: 1.2, stock: 1000, description: "PVC conduits for safe cable routing in buildings.", unit: "each", weightKg: 0.2, serviceTag: "installation" },
-  { id: "p2", name: "19mm Round Box", category: "Conduits and fittings", price: 0.5, stock: 500, description: "Round electrical box for conduit terminations.", unit: "each", weightKg: 0.1, serviceTag: "installation" },
-  { id: "p3", name: "19mm PVC Couplings", category: "Conduits and fittings", price: 0.1, stock: 2000, description: "Couplings for joining 19mm conduits.", unit: "each", weightKg: 0.05, serviceTag: "installation" },
-  { id: "p4", name: "19mm PVC Nipples", category: "Conduits and fittings", price: 0.1, stock: 2000, description: "Nipples for conduit connection and cable passage.", unit: "each", weightKg: 0.05, serviceTag: "installation" },
-  { id: "p5", name: "3x6 Flush Boxes", category: "Boxes and panels", price: 1, stock: 300, description: "Flush boxes for switch and socket installations.", unit: "each", weightKg: 0.2, serviceTag: "installation" },
-  { id: "p6", name: "3x3 Flush Boxes", category: "Boxes and panels", price: 0.8, stock: 300, description: "Compact flush boxes for electrical accessories.", unit: "each", weightKg: 0.15, serviceTag: "installation" },
+  { id: "p1", name: "19mm PVC Conduits", category: "Conduits and fittings", price: 1.2, stock: 1000, description: "PVC conduits for safe cable routing in buildings.", unit: "each", weightKg: 0.2, serviceTag: "installation", imageUrl: productImageUrls.p1 },
+  { id: "p2", name: "19mm Round Box", category: "Conduits and fittings", price: 0.5, stock: 500, description: "Round electrical box for conduit terminations.", unit: "each", weightKg: 0.1, serviceTag: "installation", imageUrl: productImageUrls.p2 },
+  { id: "p3", name: "19mm PVC Couplings", category: "Conduits and fittings", price: 0.1, stock: 2000, description: "Couplings for joining 19mm conduits.", unit: "each", weightKg: 0.05, serviceTag: "installation", imageUrl: productImageUrls.p3 },
+  { id: "p4", name: "19mm PVC Nipples", category: "Conduits and fittings", price: 0.1, stock: 2000, description: "Nipples for conduit connection and cable passage.", unit: "each", weightKg: 0.05, serviceTag: "installation", imageUrl: productImageUrls.p4 },
+  { id: "p5", name: "3x6 Flush Boxes", category: "Boxes and panels", price: 1, stock: 300, description: "Flush boxes for switch and socket installations.", unit: "each", weightKg: 0.2, serviceTag: "installation", imageUrl: productImageUrls.p5 },
+  { id: "p6", name: "3x3 Flush Boxes", category: "Boxes and panels", price: 0.8, stock: 300, description: "Compact flush boxes for electrical accessories.", unit: "each", weightKg: 0.15, serviceTag: "installation", imageUrl: productImageUrls.p6 },
   { id: "p7", name: "24 Way DP Box", category: "Boxes and panels", price: 40, stock: 25, description: "Distribution protection box for breaker layout.", unit: "each", weightKg: 3, serviceTag: "distribution" },
   { id: "p8", name: "25mm PVC Conduits", category: "Conduits and fittings", price: 1.5, stock: 200, description: "Heavier-duty conduit for larger cable runs.", unit: "each", weightKg: 0.25, serviceTag: "installation" },
   { id: "p9", name: "25mm PVC Nipples", category: "Conduits and fittings", price: 0.5, stock: 500, description: "25mm nipples for conduit fittings.", unit: "each", weightKg: 0.08, serviceTag: "installation" },
   { id: "p10", name: "25mm PVC Couplings", category: "Conduits and fittings", price: 0.5, stock: 500, description: "Couplings for 25mm conduit runs.", unit: "each", weightKg: 0.08, serviceTag: "installation" },
-  { id: "p11", name: "1.5mm Red Cable", category: "Cables", price: 35, stock: 100, description: "Single-core red cable for lighting circuits.", unit: "coil", weightKg: 4, serviceTag: "wiring" },
+  { id: "p11", name: "1.5mm Red Cable", category: "Cables", price: 35, stock: 100, description: "Single-core red cable for lighting circuits.", unit: "coil", weightKg: 4, serviceTag: "wiring", imageUrl: productImageUrls.p11 },
   { id: "p12", name: "1.5mm Black Cable", category: "Cables", price: 35, stock: 100, description: "Single-core black cable for lighting circuits.", unit: "coil", weightKg: 4, serviceTag: "wiring" },
-  { id: "p13", name: "2.5mm Red Cable", category: "Cables", price: 40, stock: 100, description: "Socket circuit cable with durable insulation.", unit: "coil", weightKg: 5, serviceTag: "wiring" },
+  { id: "p13", name: "2.5mm Red Cable", category: "Cables", price: 40, stock: 100, description: "Socket circuit cable with durable insulation.", unit: "coil", weightKg: 5, serviceTag: "wiring", imageUrl: productImageUrls.p13 },
   { id: "p14", name: "2.5mm Black Cable", category: "Cables", price: 40, stock: 100, description: "Black insulated cable for socket wiring.", unit: "coil", weightKg: 5, serviceTag: "wiring" },
   { id: "p15", name: "2.5mm Earth Cable", category: "Cables", price: 40, stock: 100, description: "Earth cable for safe grounding installations.", unit: "coil", weightKg: 5, serviceTag: "wiring" },
   { id: "p16", name: "6mm Red Cable", category: "Cables", price: 1.2, stock: 500, description: "Heavy-duty red cable sold per meter.", unit: "meter", weightKg: 0.1, serviceTag: "power" },
   { id: "p17", name: "6mm Black Cable", category: "Cables", price: 1.2, stock: 500, description: "Heavy-duty black cable sold per meter.", unit: "meter", weightKg: 0.1, serviceTag: "power" },
   { id: "p18", name: "6mm Earth Cable", category: "Cables", price: 1.2, stock: 500, description: "Heavy-duty earth cable sold per meter.", unit: "meter", weightKg: 0.1, serviceTag: "power" },
-  { id: "p19", name: "13A Double Socket", category: "Sockets and switches", price: 6, stock: 150, description: "Double socket outlet for domestic use.", unit: "each", weightKg: 0.25, serviceTag: "installation" },
-  { id: "p20", name: "15A Double Socket", category: "Sockets and switches", price: 7, stock: 150, description: "15A socket for high-load appliance use.", unit: "each", weightKg: 0.25, serviceTag: "installation" },
+  { id: "p19", name: "13A Double Socket", category: "Sockets and switches", price: 6, stock: 150, description: "Double socket outlet for domestic use.", unit: "each", weightKg: 0.25, serviceTag: "installation", imageUrl: productImageUrls.p19 },
+  { id: "p20", name: "15A Double Socket", category: "Sockets and switches", price: 7, stock: 150, description: "15A socket for high-load appliance use.", unit: "each", weightKg: 0.25, serviceTag: "installation", imageUrl: productImageUrls.p20 },
   { id: "p21", name: "Single Socket Outlet", category: "Sockets and switches", price: 4, stock: 150, description: "Single socket outlet for standard domestic installations.", unit: "each", weightKg: 0.2, serviceTag: "installation" },
   { id: "p22", name: "Double Waterproof Socket", category: "Sockets and switches", price: 20, stock: 60, description: "Weather-resistant double socket for outdoor use.", unit: "each", weightKg: 0.35, serviceTag: "outdoor" },
   { id: "p23", name: "1 Gang 2 Way Switch", category: "Sockets and switches", price: 3, stock: 120, description: "Single-gang two-way switch.", unit: "each", weightKg: 0.12, serviceTag: "installation" },
@@ -178,7 +191,7 @@ export class HardwareDatabase {
     if (count === 0) {
       const stmt = this.db.prepare(`
         INSERT INTO products (id, name, category, price, stock, description, unit, weightKg, serviceTag, imageUrl)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const product of seedProducts) {
         stmt.run([
@@ -190,7 +203,8 @@ export class HardwareDatabase {
           product.description,
           product.unit,
           product.weightKg,
-          product.serviceTag
+          product.serviceTag,
+          product.imageUrl ?? null
         ]);
       }
       stmt.free();
@@ -201,6 +215,13 @@ export class HardwareDatabase {
     this.db.run(
       `DELETE FROM products WHERE LOWER(name) IN ('test item', 'test item 3', 'test item 4')`
     );
+
+    const imageStmt = this.db.prepare("UPDATE products SET imageUrl = ? WHERE id = ?");
+    for (const [id, imageUrl] of Object.entries(productImageUrls)) {
+      imageStmt.run([imageUrl, id]);
+    }
+    imageStmt.free();
+
     await this.persist();
   }
 

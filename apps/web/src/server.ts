@@ -241,9 +241,6 @@ app.get("/", (_req, res) => {
           </div>
         </details>
       </div>
-      <p style="margin:0.65rem 0.25rem 0.15rem;text-align:center;font-size:0.8rem;">
-        <a href="/admin" style="color:var(--brand-blue);font-weight:700;text-decoration:none;">Staff admin login</a>
-      </p>
     </aside>
 
     <footer class="site-footer">
