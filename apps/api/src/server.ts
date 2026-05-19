@@ -297,6 +297,7 @@ app.get("/api/auth/me", (req, res) => {
 app.get("/api/products", (req, res) => {
   const search = String(req.query.search ?? "").toLowerCase();
   const category = String(req.query.category ?? "");
+  res.setHeader("Cache-Control", "no-store");
   res.json(db.listProducts(search, category));
 });
 

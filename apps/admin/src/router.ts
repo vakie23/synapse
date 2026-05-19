@@ -185,6 +185,11 @@ function renderAdminPage(pathPrefix = adminPath): string {
       font-size: 0.95rem;
     }
     details.collapsible[open] > summary::after { content: "▲"; }
+    .live-sync-note {
+      margin: 0 0 1rem; padding: 0.85rem 1rem; border-radius: 0.5rem;
+      background: linear-gradient(135deg, #eef3ff, #f5ecff); border-left: 4px solid #f0bb2d;
+      font-size: 0.92rem; color: #333;
+    }
   </style>
 </head>
 <body>
@@ -192,6 +197,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
     <details class="panel collapsible" open>
       <summary>Dashboard Overview</summary>
       <h1>Admin Dashboard</h1>
+      <p class="live-sync-note"><strong>Linked to the public website.</strong> When you add, edit, or delete products here, customers see the changes on the quotation page after they refresh (prices, names, stock, photos, and categories).</p>
       <div class="actions">
         <button class="primary" type="button" onclick="loadDashboard()">Refresh dashboard</button>
         <button class="secondary" type="button" onclick="document.getElementById('credentialsPanel').classList.toggle('hidden')">Change credentials</button>
@@ -576,7 +582,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
         if (response.ok) {
           productForm.reset();
           await loadDashboard();
-          showStatus("Product saved successfully.");
+          showStatus("Product saved. It is now live on the website quotation page.");
         } else {
           showStatus("Could not save product. Please check the values and try again.");
         }
@@ -602,7 +608,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
         });
         statusForm.reset();
         await loadDashboard();
-        showStatus("Order status updated successfully.");
+        showStatus("Order status updated. Customers see this when they track their order on the website.");
       } catch {
         showStatus("Could not update that order. Check the order ID and try again.");
       }
@@ -636,7 +642,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
           body: JSON.stringify({ deliveryFee, discountAmount })
         });
         await loadDashboard();
-        showStatus("Quotation updated: delivery estimate and discount applied.");
+        showStatus("Quotation updated. Customer totals on the website reflect this when they view their quotation.");
       } catch {
         showStatus("Could not update quotation. Please try again.");
       }
@@ -729,7 +735,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
           method: "DELETE"
         });
         await loadDashboard();
-        showStatus("Product deleted successfully.");
+        showStatus("Product deleted. It is removed from the website quotation page.");
       } catch (error) {
         showStatus("Could not delete product. " + (error && error.message ? error.message : "Please try again."));
       }
@@ -759,7 +765,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
 
         if (response.ok) {
           await loadDashboard();
-          showStatus("Product updated successfully.");
+          showStatus("Product updated. Changes are live on the website quotation page.");
         } else {
           showStatus("Could not update product. Please check the values and try again.");
         }
