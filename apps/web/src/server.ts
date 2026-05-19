@@ -306,7 +306,13 @@ app.get("/quotation", (_req, res) => {
     .primary { background: linear-gradient(135deg, #2f2ab2, #241c7a); color: white; }
     .secondary { background: linear-gradient(135deg, #d53d42, #b32025); color: white; }
     .layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1rem; }
-    .item-list { display: grid; gap: 0.8rem; }
+    .item-list { display: grid; gap: 1.25rem; }
+    .category-group { border: 1px solid #e4e6f5; border-radius: 0.75rem; background: #fff; overflow: hidden; box-shadow: 0 4px 14px rgba(36,28,122,0.06); }
+    .category-heading {
+      margin: 0; padding: 0.75rem 1rem; font-size: 0.95rem; color: #241c7a;
+      background: linear-gradient(135deg, #eef3ff, #f7f9ff); border-bottom: 3px solid #f0bb2d;
+    }
+    .category-items { display: grid; gap: 0.75rem; padding: 0.85rem; }
     .search-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.7rem 0 0.9rem; }
     .search-row input { flex: 1 1 240px; }
     .search-row button { border: 0; cursor: pointer; }
@@ -552,23 +558,62 @@ app.get("/quotation", (_req, res) => {
       grandTotalEl.textContent = currency.format(data.total || 0);
     }
 
+    const categoryOrder = [
+      "Conduits and fittings",
+      "Boxes and panels",
+      "Cables",
+      "Sockets and switches",
+      "Control units"
+    ];
+
+    function productImageHtml(product) {
+      if (!product.imageUrl) {
+        return '<div style="width:100%;max-width:140px;height:100px;border-radius:0.5rem;background:#eef2ff;border:1px solid #dfe3f5;margin-bottom:0.45rem;"></div>';
+      }
+      const src = product.imageUrl.startsWith("http://") || product.imageUrl.startsWith("https://")
+        ? product.imageUrl
+        : apiBase + (product.imageUrl.startsWith("/") ? product.imageUrl : "/" + product.imageUrl);
+      return '<img src="' + src + '" alt="' + product.name + '" style="width:100%;max-width:140px;height:100px;object-fit:cover;border-radius:0.5rem;border:1px solid #dfe3f5;margin-bottom:0.45rem;" />';
+    }
+
+    function renderProductCard(product) {
+      return '<label class="item-card" for="pick-' + product.id + '">' +
+        '<input id="pick-' + product.id + '" type="checkbox" />' +
+        '<div>' + productImageHtml(product) +
+        '<h3>' + product.name + '</h3>' +
+        '<p class="small">' + product.description + '</p>' +
+        '<p><strong>' + currency.format(product.price) + '</strong> per ' + product.unit + '</p>' +
+        '</div>' +
+        '<div><label for="qty-' + product.id + '">Quantity</label>' +
+        '<input class="qty-input" id="qty-' + product.id + '" type="number" min="0" value="0" /></div>' +
+        '</label>';
+    }
+
     function renderProducts() {
-      itemList.innerHTML = products.map((product) => \`
-        <label class="item-card" for="pick-\${product.id}">
-          <input id="pick-\${product.id}" type="checkbox" />
-          <div>
-            \${product.imageUrl ? \`<img src="\${product.imageUrl.startsWith("http://") || product.imageUrl.startsWith("https://") ? product.imageUrl : apiBase + (product.imageUrl.startsWith("/") ? product.imageUrl : "/" + product.imageUrl)}" alt="\${product.name}" style="width:100%;max-width:140px;height:100px;object-fit:cover;border-radius:0.5rem;border:1px solid #dfe3f5;margin-bottom:0.45rem;" />\` : \`<div style="width:100%;max-width:140px;height:100px;border-radius:0.5rem;background:#eef2ff;border:1px solid #dfe3f5;margin-bottom:0.45rem;"></div>\`}
-            <h3>\${product.name}</h3>
-            <p>\${product.category}</p>
-            <p class="small">\${product.description}</p>
-            <p><strong>\${currency.format(product.price)}</strong> per \${product.unit}</p>
-          </div>
-          <div>
-            <label for="qty-\${product.id}">Quantity</label>
-            <input class="qty-input" id="qty-\${product.id}" type="number" min="0" value="0" />
-          </div>
-        </label>
-      \`).join("");
+      const byCategory = new Map();
+      products.forEach((product) => {
+        const category = product.category || "Other";
+        if (!byCategory.has(category)) byCategory.set(category, []);
+        byCategory.get(category).push(product);
+      });
+
+      const categories = [...byCategory.keys()].sort((a, b) => {
+        const ai = categoryOrder.indexOf(a);
+        const bi = categoryOrder.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
+      itemList.innerHTML = categories.map((category) =>
+        '<section class="category-group">' +
+        '<h3 class="category-heading">' + category + '</h3>' +
+        '<div class="category-items">' +
+        byCategory.get(category).map(renderProductCard).join("") +
+        '</div></section>'
+      ).join("");
+
 
       itemList.querySelectorAll("input").forEach((input) => {
         input.addEventListener("input", updateTotals);
