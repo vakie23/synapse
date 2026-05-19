@@ -7,7 +7,6 @@ import { createAdminRouter } from "../../admin/dist/router.js";
 const app = express();
 const webRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 app.use(express.static(path.join(webRoot, "public")));
-app.get("/admin", (_req, res) => res.redirect(301, "/admin/"));
 app.use("/admin", createAdminRouter("/admin"));
 
 const logoUrl = process.env.LOGO_URL ?? "";
@@ -243,12 +242,12 @@ app.get("/", (_req, res) => {
         </details>
       </div>
       <p style="margin:0.65rem 0.25rem 0.15rem;text-align:center;font-size:0.8rem;">
-        <a href="/admin/" style="color:var(--brand-blue);font-weight:700;text-decoration:none;">Staff admin login</a>
+        <a href="/admin" style="color:var(--brand-blue);font-weight:700;text-decoration:none;">Staff admin login</a>
       </p>
     </aside>
 
     <footer class="site-footer">
-      <p>&copy; Synapse Engineering &mdash; <a href="mailto:synapseengineering@gmail.com">Contact</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin/">Staff admin</a></p>
+      <p>&copy; Synapse Engineering &mdash; <a href="mailto:synapseengineering@gmail.com">Contact</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin">Staff admin</a></p>
     </footer>
   </div>
   <script>

@@ -845,12 +845,12 @@ router.post("/login", (req, res) => {
 
   const token = createSessionToken(username!);
   res.setHeader("Set-Cookie", `${sessionCookieName}=${token}; HttpOnly; Path=/; SameSite=Lax`);
-  res.redirect(`${adminPath}/`);
+  res.redirect(adminPath || "/");
 });
 
 router.post("/logout", (_req, res) => {
   res.setHeader("Set-Cookie", `${sessionCookieName}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`);
-  res.redirect(`${adminPath}/`);
+  res.redirect(adminPath || "/");
 });
 
   return router;
