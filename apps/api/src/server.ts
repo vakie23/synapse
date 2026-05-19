@@ -537,8 +537,15 @@ async function parseMultipartRequest(req: express.Request): Promise<{ fields: Re
       console.error("multipart field", fieldname, val);
     });
 
-    bb.on("file", (fieldname: string, file: NodeJS.ReadableStream, filename: string, encoding: string, mimetype: string) => {
-      console.error("multipart file event", fieldname, filename, mimetype);
+    bb.on("file", (fieldname: string, file: NodeJS.ReadableStream, filenameOrInfo: unknown, encoding?: string, mimetype?: string) => {
+      const info = (filenameOrInfo && typeof filenameOrInfo === "object")
+        ? (filenameOrInfo as { filename?: string; encoding?: string; mimeType?: string; mimetype?: string })
+        : undefined;
+      const filename = typeof filenameOrInfo === "string" ? filenameOrInfo : (info?.filename ?? "");
+      const resolvedMime = mimetype ?? info?.mimeType ?? info?.mimetype;
+      const resolvedEncoding = encoding ?? info?.encoding;
+
+      console.error("multipart file event", fieldname, filename, resolvedMime, resolvedEncoding);
       if (fieldname === "image" && filename) {
         const chunks: Buffer[] = [];
         file.on("data", (chunk: Buffer) => {
@@ -547,7 +554,7 @@ async function parseMultipartRequest(req: express.Request): Promise<{ fields: Re
         });
         file.on("end", () => {
           imageBuffer = Buffer.concat(chunks);
-          imageMime = mimetype;
+          imageMime = resolvedMime;
           console.error("multipart file end", imageBuffer.length, imageMime);
         });
       } else {

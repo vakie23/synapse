@@ -312,6 +312,13 @@ function renderAdminPage(): string {
       dashboardStatus.textContent = message;
     }
 
+    function resolveImageUrl(imageUrl) {
+      const raw = String(imageUrl || "").trim();
+      if (!raw) return "";
+      if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+      return apiBase + (raw.startsWith("/") ? raw : ("/" + raw));
+    }
+
     function escapeHtml(value) {
       return String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -380,7 +387,8 @@ function renderAdminPage(): string {
         return;
       }
       document.getElementById("productsList").innerHTML = filtered.map((product) => {
-        const img = product.imageUrl ? '<img src="' + product.imageUrl + '" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />' : '';
+        const imgUrl = resolveImageUrl(product.imageUrl);
+        const img = imgUrl ? '<img src="' + imgUrl + '" style="width:100%;height:200px;object-fit:cover;border-radius:0.5rem;margin-bottom:0.5rem;" />' : '';
         return '<article class="item" data-product-item="' + product.id + '">' +
           img +
           '<h3>' + product.name + '</h3>' +
@@ -430,8 +438,9 @@ function renderAdminPage(): string {
         const hasLocation = Number.isFinite(lat) && Number.isFinite(lng);
         const mapLink = hasLocation ? ('<div><a class="primary" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps?q=' + lat + ',' + lng + '">Open customer location</a></div>') : "";
         const renderedItems = quotation.lines.map((line) => {
-          const lineImage = line.imageUrl
-            ? ('<img src="' + line.imageUrl + '" alt="' + line.name + '" style="width:48px;height:48px;object-fit:cover;border-radius:0.35rem;" />')
+          const lineImgUrl = resolveImageUrl(line.imageUrl);
+          const lineImage = lineImgUrl
+            ? ('<img src="' + lineImgUrl + '" alt="' + line.name + '" style="width:48px;height:48px;object-fit:cover;border-radius:0.35rem;" />')
             : '<div style="width:48px;height:48px;border-radius:0.35rem;background:#f3f4f6;"></div>';
           return '<div class="split" style="gap:0.65rem;align-items:center;justify-content:flex-start;margin-top:0.45rem;">' +
             lineImage +
