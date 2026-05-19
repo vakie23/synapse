@@ -3,8 +3,8 @@
 This guide deploys the app stack to production:
 
 - API (`apps/api`)
-- Web (`apps/web`)
-- Admin (`apps/admin`)
+- Web (`apps/web`) — includes customer site and admin at `/admin`
+- Admin (`apps/admin`) — optional standalone; not required if you use embedded admin on web
 
 ## 1) Prepare Environment Variables
 
@@ -27,7 +27,7 @@ Steps:
 3. Review all three services:
    - `synapse-api`
    - `synapse-web`
-   - `synapse-admin`
+   - `synapse-admin` (optional — admin is also at `https://<web-domain>/admin`)
 4. Set secret environment variables (those marked `sync: false`).
 5. Deploy.
 

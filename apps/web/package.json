@@ -10,6 +10,7 @@
     "lint": "echo \"No lint configured for web\""
   },
   "dependencies": {
+    "@hardware/admin": "1.0.0",
     "express": "^5.1.0"
   }
 }

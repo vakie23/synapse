@@ -1,10 +1,12 @@
 ﻿import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createAdminRouter } from "@hardware/admin/router";
 
 const app = express();
 const webRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 app.use(express.static(path.join(webRoot, "public")));
+app.use("/admin", createAdminRouter("/admin"));
 
 const logoUrl = process.env.LOGO_URL ?? "";
 const apiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
@@ -63,13 +65,30 @@ app.get("/", (_req, res) => {
     .hero-overlay h1 { margin: 0 0 0.35rem; font-size: clamp(1.45rem, 4vw, 2.15rem); font-weight: 700; max-width: 36rem; }
     .hero-overlay .tagline { margin: 0 0 0.75rem; color: var(--brand-gold); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; }
     .hero-overlay .intro { margin: 0; max-width: 38rem; font-size: clamp(0.95rem, 2.5vw, 1.05rem); opacity: 0.96; line-height: 1.65; }
+    .menu-fab {
+      position: fixed; top: 1rem; right: 1rem; z-index: 300;
+      width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 0.55rem;
+      border: 1px solid #d8dbf0; background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 8px 24px rgba(36, 28, 122, 0.18); cursor: pointer;
+      display: grid; place-items: center; color: var(--brand-blue);
+      backdrop-filter: blur(8px);
+    }
+    .menu-fab:hover { background: #fff; border-color: var(--brand-gold); }
+    .menu-fab[aria-expanded="true"] { background: var(--brand-blue); color: #fff; border-color: var(--brand-blue); }
+    .menu-dots { font-size: 1.35rem; line-height: 1; letter-spacing: 0.05em; font-weight: 700; }
     .corner-menu {
-      position: fixed; top: 5.25rem; right: clamp(0.5rem, 2vw, 1.25rem); z-index: 200;
-      width: min(360px, calc(100vw - 1rem)); max-height: calc(100vh - 6.5rem); overflow-y: auto;
+      position: fixed; top: 4.25rem; right: 1rem; z-index: 299;
+      width: min(360px, calc(100vw - 2rem)); max-height: calc(100vh - 5.5rem); overflow-y: auto;
       padding: 0.65rem; border-radius: 1rem;
       background: rgba(255, 255, 255, 0.98); border: 2px solid var(--brand-gold);
-      box-shadow: 0 18px 48px rgba(36, 28, 122, 0.2);
+      box-shadow: 0 18px 48px rgba(36, 28, 122, 0.22);
       backdrop-filter: blur(8px);
+      opacity: 0; visibility: hidden; transform: translateY(-8px) scale(0.98);
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+      pointer-events: none;
+    }
+    .corner-menu.is-open {
+      opacity: 1; visibility: visible; transform: translateY(0) scale(1); pointer-events: auto;
     }
     .corner-menu-title {
       margin: 0 0 0.5rem; padding: 0.35rem 0.5rem 0.65rem; font-size: 0.72rem; font-weight: 700;
@@ -77,8 +96,8 @@ app.get("/", (_req, res) => {
     }
     .accordion-list { display: grid; gap: 0.55rem; }
     @media (max-width: 720px) {
-      .corner-menu { top: auto; bottom: 0.75rem; right: 0.5rem; left: 0.5rem; width: auto; max-height: 52vh; }
-      .hero-banner, .hero-banner img { min-height: 42vh; height: 42vh; }
+      .corner-menu { top: 4rem; right: 0.75rem; left: auto; width: min(360px, calc(100vw - 1.5rem)); }
+      .menu-fab { top: 0.75rem; right: 0.75rem; }
     }
     .accordion { border: 1px solid #e4e6f5; border-radius: 0.85rem; background: #fff; box-shadow: 0 6px 20px rgba(36, 28, 122, 0.05); overflow: hidden; }
     .accordion[open] { box-shadow: 0 12px 32px rgba(36, 28, 122, 0.1); border-color: #d0d4f0; }
@@ -145,7 +164,10 @@ app.get("/", (_req, res) => {
       </div>
     </section>
 
-    <aside class="corner-menu" aria-label="Site menu">
+    <button type="button" class="menu-fab" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteMenu">
+      <span class="menu-dots" aria-hidden="true">⋯</span>
+    </button>
+    <aside class="corner-menu" id="siteMenu" aria-label="Site menu">
       <p class="corner-menu-title">Menu</p>
       <div class="accordion-list">
         <details class="accordion">
@@ -214,6 +236,28 @@ app.get("/", (_req, res) => {
     </footer>
   </div>
   <script>
+    const menuToggle = document.getElementById("menuToggle");
+    const siteMenu = document.getElementById("siteMenu");
+    menuToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = siteMenu.classList.toggle("is-open");
+      menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      menuToggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    });
+    document.addEventListener("click", (event) => {
+      if (!siteMenu.classList.contains("is-open")) return;
+      if (siteMenu.contains(event.target) || menuToggle.contains(event.target)) return;
+      siteMenu.classList.remove("is-open");
+      menuToggle.setAttribute("aria-expanded", "false");
+      menuToggle.setAttribute("aria-label", "Open menu");
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && siteMenu.classList.contains("is-open")) {
+        siteMenu.classList.remove("is-open");
+        menuToggle.setAttribute("aria-expanded", "false");
+        menuToggle.setAttribute("aria-label", "Open menu");
+      }
+    });
     document.querySelectorAll(".accordion").forEach((panel) => {
       const chevron = panel.querySelector(".accordion-chevron");
       const sync = () => { chevron.textContent = panel.open ? "^" : "v"; };
