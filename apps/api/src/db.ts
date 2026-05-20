@@ -44,8 +44,22 @@ export type OrderRecord = {
     stage: string;
     currentLocation: string;
     coordinates: { lat: number; lng: number };
+    origin?: { lat: number; lng: number; label?: string };
+    expectedArrivalAt?: string;
     updatedAt: string;
   };
+};
+
+export type DispatchSettings = {
+  label: string;
+  lat: number;
+  lng: number;
+};
+
+export const defaultDispatchSettings: DispatchSettings = {
+  label: "Synapse Engineering dispatch",
+  lat: -17.8252,
+  lng: 31.0335
 };
 
 export type QuotationRecord = {
@@ -146,6 +160,7 @@ export class HardwareDatabase {
   private moduleDir = path.dirname(fileURLToPath(import.meta.url));
   private dbPath = path.resolve(this.moduleDir, "../data/hardware.sqlite");
   private legacyDbPath = path.resolve(process.cwd(), "apps/api/data/hardware.sqlite");
+  private dispatchSettingsPath = path.resolve(this.moduleDir, "../data/dispatch-settings.json");
 
   async init(): Promise<void> {
     await fs.mkdir(path.dirname(this.dbPath), { recursive: true });
@@ -376,6 +391,28 @@ export class HardwareDatabase {
   async updateOrder(order: OrderRecord): Promise<void> {
     this.db.run("UPDATE orders SET data = ? WHERE id = ?", [JSON.stringify(order), order.id]);
     await this.persist();
+  }
+
+  async getDispatchSettings(): Promise<DispatchSettings> {
+    try {
+      const raw = await fs.readFile(this.dispatchSettingsPath, "utf8");
+      const parsed = JSON.parse(raw) as Partial<DispatchSettings>;
+      if (
+        typeof parsed.lat === "number" &&
+        typeof parsed.lng === "number" &&
+        typeof parsed.label === "string"
+      ) {
+        return { label: parsed.label, lat: parsed.lat, lng: parsed.lng };
+      }
+    } catch {
+      /* use default */
+    }
+    return { ...defaultDispatchSettings };
+  }
+
+  async setDispatchSettings(settings: DispatchSettings): Promise<void> {
+    await fs.mkdir(path.dirname(this.dispatchSettingsPath), { recursive: true });
+    await fs.writeFile(this.dispatchSettingsPath, JSON.stringify(settings, null, 2), "utf8");
   }
 
   getCustomerByEmail(email: string): CustomerRecord | undefined {

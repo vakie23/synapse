@@ -203,6 +203,9 @@ function renderAdminPage(pathPrefix = adminPath): string {
     .stat-clickable:hover { background: #e8eeff; }
     .transit-order-card { cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
     .transit-order-card.is-active { border-color: #241c7a; box-shadow: 0 0 0 2px rgba(36, 28, 122, 0.12); }
+    .admin-map { width: 100%; height: 280px; border-radius: 0.65rem; margin-top: 0.65rem; border: 1px solid #d8dbf0; background: #eef3ff; }
+    .map-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.5rem; font-size: 0.85rem; color: #555; }
+    .map-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 0.2rem; }
     @media (max-width: 700px) { .track-row { grid-template-columns: 1fr; } }
   </style>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -254,6 +257,22 @@ function renderAdminPage(pathPrefix = adminPath): string {
       <p id="transitTrackError" class="muted hidden" style="margin-top: 0.75rem;"></p>
       <h3 style="margin: 1.25rem 0 0.5rem; color: #241c7a; font-size: 1rem;">Shipments in transit</h3>
       <div id="transitList" class="list"></div>
+      <p class="map-legend" style="margin-top:0.75rem;">
+        <span><i style="background:#2e7d32"></i> Green = dispatch origin</span>
+        <span><i style="background:#f0bb2d"></i> Gold = goods now</span>
+        <span><i style="background:#b32025"></i> Red = customer address</span>
+      </p>
+    </details>
+
+    <details class="panel collapsible" open>
+      <summary>Dispatch origin (where goods ship from)</summary>
+      <p class="muted">Set the warehouse or shop location on the map. New orders start from here.</p>
+      <label for="dispatchLabel">Location name</label>
+      <input id="dispatchLabel" type="text" placeholder="e.g. Synapse Engineering Harare" />
+      <div id="dispatchMap" class="admin-map"></div>
+      <input type="hidden" id="dispatchLat" />
+      <input type="hidden" id="dispatchLng" />
+      <button type="button" class="primary" id="saveDispatchBtn" style="margin-top:0.75rem;">Save dispatch location</button>
     </details>
 
     <div class="grid">
@@ -270,11 +289,12 @@ function renderAdminPage(pathPrefix = adminPath): string {
           <button class="primary" type="submit">Save product</button>
         </form>
       </details>
-      <details class="panel collapsible">
-        <summary>Update Delivery Status</summary>
-        <h2>Update Delivery Status</h2>
+      <details class="panel collapsible" open>
+        <summary>Update delivery on map</summary>
+        <h2>Update delivery on map</h2>
+        <p class="muted">Move the pin to where the goods are now and set expected arrival for the customer.</p>
         <form id="statusForm" class="stack">
-          <input name="orderId" placeholder="Order ID" required />
+          <input name="orderId" id="statusOrderId" placeholder="Order ID" required />
           <select name="status">
             <option value="PENDING_PAYMENT">Pending payment</option>
             <option value="PLACED">Placed</option>
@@ -284,9 +304,15 @@ function renderAdminPage(pathPrefix = adminPath): string {
             <option value="DELIVERED">Delivered</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
-          <input name="stage" placeholder="Stage description" />
-          <input name="currentLocation" placeholder="Current location" />
-          <button class="secondary" type="submit">Update order status</button>
+          <input name="stage" placeholder="Stage (e.g. On the way to customer)" />
+          <input name="currentLocation" id="statusLocationText" placeholder="Location description" />
+          <label for="statusEta">Expected arrival (customer sees this)</label>
+          <input name="expectedArrivalAt" id="statusEta" type="datetime-local" />
+          <p class="muted">Tap the map to set where the shipment is right now:</p>
+          <div id="statusMap" class="admin-map"></div>
+          <input type="hidden" id="statusLat" name="statusLat" />
+          <input type="hidden" id="statusLng" name="statusLng" />
+          <button class="secondary" type="submit">Update order on map</button>
         </form>
       </details>
     </div>
@@ -342,9 +368,123 @@ function renderAdminPage(pathPrefix = adminPath): string {
     let allProducts = [];
     let allQuotations = [];
     let allOrders = [];
+    let dispatchSettings = { label: "Synapse Engineering dispatch", lat: -17.8252, lng: 31.0335 };
     let transitMap = null;
-    let transitMarker = null;
+    let transitRouteLayer = null;
+    let transitMapLayerGroup = null;
+    let statusMap = null;
+    let statusMarker = null;
+    let dispatchMap = null;
+    let dispatchMarker = null;
     let activeTransitOrderId = "";
+
+    function mapPin(color) {
+      return L.divIcon({
+        className: "",
+        html: '<span style="display:block;width:12px;height:12px;border-radius:50%;background:' + color + ';border:2px solid #fff"></span>',
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+      });
+    }
+
+    function toDatetimeLocalValue(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      const pad = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    }
+
+    function initDispatchMap() {
+      const el = document.getElementById("dispatchMap");
+      if (!el) return;
+      if (dispatchMap) {
+        dispatchMarker.setLatLng([dispatchSettings.lat, dispatchSettings.lng]);
+        dispatchMap.setView([dispatchSettings.lat, dispatchSettings.lng], 13);
+        document.getElementById("dispatchLabel").value = dispatchSettings.label || "";
+        document.getElementById("dispatchLat").value = String(dispatchSettings.lat);
+        document.getElementById("dispatchLng").value = String(dispatchSettings.lng);
+        return;
+      }
+      dispatchMap = L.map("dispatchMap").setView([dispatchSettings.lat, dispatchSettings.lng], 13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(dispatchMap);
+      dispatchMarker = L.marker([dispatchSettings.lat, dispatchSettings.lng], { draggable: true }).addTo(dispatchMap);
+      document.getElementById("dispatchLabel").value = dispatchSettings.label || "";
+      document.getElementById("dispatchLat").value = String(dispatchSettings.lat);
+      document.getElementById("dispatchLng").value = String(dispatchSettings.lng);
+      const syncDispatch = (lat, lng) => {
+        document.getElementById("dispatchLat").value = String(Number(lat).toFixed(6));
+        document.getElementById("dispatchLng").value = String(Number(lng).toFixed(6));
+      };
+      dispatchMarker.on("dragend", () => {
+        const p = dispatchMarker.getLatLng();
+        syncDispatch(p.lat, p.lng);
+      });
+      dispatchMap.on("click", (e) => {
+        dispatchMarker.setLatLng(e.latlng);
+        syncDispatch(e.latlng.lat, e.latlng.lng);
+      });
+      setTimeout(() => dispatchMap.invalidateSize(), 200);
+    }
+
+    function initStatusMap(lat, lng) {
+      const el = document.getElementById("statusMap");
+      if (!el) return;
+      const startLat = lat ?? dispatchSettings.lat;
+      const startLng = lng ?? dispatchSettings.lng;
+      if (!statusMap) {
+        statusMap = L.map("statusMap").setView([startLat, startLng], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(statusMap);
+        statusMarker = L.marker([startLat, startLng], { draggable: true }).addTo(statusMap);
+        statusMarker.on("dragend", () => {
+          const p = statusMarker.getLatLng();
+          document.getElementById("statusLat").value = String(Number(p.lat).toFixed(6));
+          document.getElementById("statusLng").value = String(Number(p.lng).toFixed(6));
+        });
+        statusMap.on("click", (e) => {
+          statusMarker.setLatLng(e.latlng);
+          document.getElementById("statusLat").value = String(Number(e.latlng.lat).toFixed(6));
+          document.getElementById("statusLng").value = String(Number(e.latlng.lng).toFixed(6));
+        });
+      } else {
+        statusMap.setView([startLat, startLng], 13);
+        statusMarker.setLatLng([startLat, startLng]);
+      }
+      document.getElementById("statusLat").value = String(Number(startLat).toFixed(6));
+      document.getElementById("statusLng").value = String(Number(startLng).toFixed(6));
+      setTimeout(() => statusMap.invalidateSize(), 200);
+    }
+
+    function drawOrderOnMap(order) {
+      const el = document.getElementById("transitTrackMap");
+      if (!el || !order) return;
+      const tracking = order.tracking || {};
+      const origin = tracking.origin || { lat: dispatchSettings.lat, lng: dispatchSettings.lng, label: dispatchSettings.label };
+      const dest = order.customerLocation;
+      const current = tracking.coordinates;
+      if (!dest || !current || !Number.isFinite(current.lat)) return;
+
+      el.innerHTML = "";
+      transitMap = L.map("transitTrackMap");
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(transitMap);
+      transitMapLayerGroup = L.layerGroup().addTo(transitMap);
+      const points = [[origin.lat, origin.lng], [current.lat, current.lng], [dest.lat, dest.lng]];
+      transitRouteLayer = L.polyline(points, { color: "#241c7a", weight: 4, dashArray: "10 8" }).addTo(transitMapLayerGroup);
+      L.marker([origin.lat, origin.lng], { icon: mapPin("#2e7d32") }).addTo(transitMapLayerGroup).bindPopup("Dispatch: " + (origin.label || ""));
+      L.marker([current.lat, current.lng], { icon: mapPin("#f0bb2d") }).addTo(transitMapLayerGroup).bindPopup(tracking.currentLocation || "In transit");
+      L.marker([dest.lat, dest.lng], { icon: mapPin("#b32025") }).addTo(transitMapLayerGroup).bindPopup("Customer address");
+      transitMap.fitBounds(transitRouteLayer.getBounds(), { padding: [24, 24] });
+      setTimeout(() => { if (transitMap) transitMap.invalidateSize(); }, 200);
+    }
 
     function showStatus(message) {
       dashboardStatus.hidden = false;
@@ -537,50 +677,33 @@ function renderAdminPage(pathPrefix = adminPath): string {
         transitTrackResult.classList.add("hidden");
         transitTrackError.classList.remove("hidden");
         transitTrackError.textContent = "Order not found. Please verify the order ID.";
-        if (transitTrackMapEl) transitTrackMapEl.style.display = "none";
+        if (transitTrackMapEl) transitTrackMapEl.innerHTML = "";
         return;
       }
 
       const tracking = order.tracking;
-      const lat = Number(tracking.coordinates?.lat);
-      const lng = Number(tracking.coordinates?.lng);
-      const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
+      const eta = tracking.expectedArrivalAt
+        ? new Date(tracking.expectedArrivalAt).toLocaleString()
+        : "Not set yet";
+      const origin = tracking.origin || dispatchSettings;
 
       transitTrackError.classList.add("hidden");
       transitTrackResult.classList.remove("hidden");
       transitTrackResult.innerHTML =
         '<div class="track-row"><span>Order ID</span><span>' + escapeHtml(order.id || "N/A") + '</span></div>' +
+        '<div class="track-row"><span>Shipped from</span><span>' + escapeHtml(origin.label || "Dispatch") + '</span></div>' +
         '<div class="track-row"><span>Current stage</span><span>' + escapeHtml(tracking.stage || "N/A") + '</span></div>' +
         '<div class="track-row"><span>Current location</span><span>' + escapeHtml(tracking.currentLocation || "N/A") + '</span></div>' +
-        '<div class="track-row"><span>Coordinates</span><span>' + (hasCoordinates ? (lat.toFixed(4) + ", " + lng.toFixed(4)) : "N/A") + '</span></div>' +
+        '<div class="track-row"><span>Expected arrival</span><span>' + escapeHtml(eta) + '</span></div>' +
         '<div class="track-row"><span>Last updated</span><span>' + (tracking.updatedAt ? new Date(tracking.updatedAt).toLocaleString() : "N/A") + '</span></div>';
 
       const transitMapHint = document.getElementById("transitMapHint");
-      if (!hasCoordinates || !transitTrackMapEl) {
-        if (transitMapHint) transitMapHint.textContent = "This order has no map coordinates yet. Update delivery status with a location.";
-        transitTrackMapEl.style.display = "block";
-        transitTrackMapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;padding:1rem;text-align:center;">No GPS coordinates for this order yet.</div>';
-        return;
+      if (transitMapHint) transitMapHint.textContent = "Route: dispatch → goods now → customer";
+      if (order.customerLocation && tracking.coordinates) {
+        drawOrderOnMap(order);
+      } else if (transitTrackMapEl) {
+        transitTrackMapEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#666;">Missing customer or shipment coordinates.</div>';
       }
-
-      if (transitMapHint) transitMapHint.textContent = "Shipment location:";
-      transitTrackMapEl.style.display = "block";
-      if (!transitMap) {
-        transitTrackMapEl.innerHTML = "";
-        transitMap = L.map("transitTrackMap").setView([lat, lng], 13);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-          attribution: "&copy; OpenStreetMap contributors"
-        }).addTo(transitMap);
-        transitMarker = L.marker([lat, lng]).addTo(transitMap);
-      } else {
-        transitMap.setView([lat, lng], 13);
-        transitMarker.setLatLng([lat, lng]);
-      }
-      transitMarker
-        .bindPopup(tracking.currentLocation || "Current shipment location")
-        .openPopup();
-      setTimeout(() => { if (transitMap) transitMap.invalidateSize(); }, 150);
     }
 
     function renderTransit(orders) {
@@ -629,10 +752,11 @@ function renderAdminPage(pathPrefix = adminPath): string {
 
     async function loadDashboard() {
       try {
-        const [productsResult, quotationsResult, ordersResult] = await Promise.allSettled([
+        const [productsResult, quotationsResult, ordersResult, dispatchResult] = await Promise.allSettled([
           fetch(apiBase + "/api/products", { credentials: "include" }).then((res) => res.json()),
           apiFetch("/api/admin/quotations"),
-          apiFetch("/api/admin/orders")
+          apiFetch("/api/admin/orders"),
+          apiFetch("/api/admin/dispatch-settings")
         ]);
 
         const products = productsResult.status === "fulfilled" && Array.isArray(productsResult.value)
@@ -645,9 +769,14 @@ function renderAdminPage(pathPrefix = adminPath): string {
           ? ordersResult.value
           : [];
 
+        if (dispatchResult.status === "fulfilled" && dispatchResult.value) {
+          dispatchSettings = dispatchResult.value;
+        }
         allProducts = products;
         allQuotations = quotations;
         allOrders = orders;
+        initDispatchMap();
+        initStatusMap();
         renderProducts(products, productSearchInput.value);
         renderQuotations(quotations, quotationSearchInput.value);
         renderTransit(orders);
@@ -695,10 +824,15 @@ function renderAdminPage(pathPrefix = adminPath): string {
       event.preventDefault();
       const formData = new FormData(statusForm);
       const orderId = String(formData.get("orderId"));
+      const lat = Number(document.getElementById("statusLat").value);
+      const lng = Number(document.getElementById("statusLng").value);
+      const etaRaw = document.getElementById("statusEta").value;
       const payload = {
         status: String(formData.get("status")),
         stage: String(formData.get("stage") || ""),
-        currentLocation: String(formData.get("currentLocation") || "")
+        currentLocation: String(formData.get("currentLocation") || ""),
+        coordinates: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : undefined,
+        expectedArrivalAt: etaRaw ? new Date(etaRaw).toISOString() : undefined
       };
 
       try {
@@ -708,10 +842,42 @@ function renderAdminPage(pathPrefix = adminPath): string {
         });
         statusForm.reset();
         await loadDashboard();
-        showStatus("Order status updated. Customers see this when they track their order on the website.");
+        showStatus("Order updated. Customer sees route, location, and expected arrival on Track order.");
       } catch {
         showStatus("Could not update that order. Check the order ID and try again.");
       }
+    });
+
+    document.getElementById("saveDispatchBtn").addEventListener("click", async () => {
+      const label = String(document.getElementById("dispatchLabel").value || "").trim();
+      const lat = Number(document.getElementById("dispatchLat").value);
+      const lng = Number(document.getElementById("dispatchLng").value);
+      if (!label || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+        showStatus("Set a location name and pick a point on the dispatch map.");
+        return;
+      }
+      try {
+        const saved = await apiFetch("/api/admin/dispatch-settings", {
+          method: "PUT",
+          body: JSON.stringify({ label, lat, lng })
+        });
+        dispatchSettings = saved;
+        showStatus("Dispatch origin saved. New orders will ship from this location.");
+      } catch {
+        showStatus("Could not save dispatch location.");
+      }
+    });
+
+    document.getElementById("transitList").addEventListener("click", (event) => {
+      const card = event.target.closest(".transit-order-card");
+      if (!card) return;
+      const order = allOrders.find((item) => item.id === card.getAttribute("data-order-id"));
+      if (!order) return;
+      document.getElementById("statusOrderId").value = order.id;
+      const t = order.tracking || {};
+      document.getElementById("statusLocationText").value = t.currentLocation || "";
+      document.getElementById("statusEta").value = toDatetimeLocalValue(t.expectedArrivalAt);
+      if (t.coordinates) initStatusMap(t.coordinates.lat, t.coordinates.lng);
     });
 
     document.getElementById("quotationsList").addEventListener("submit", async (event) => {

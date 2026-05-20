@@ -241,13 +241,14 @@ app.get("/", (_req, res) => {
       <nav class="site-nav-links" aria-label="Quick links">
         <a href="/quotation">Items, prices and quotation</a>
         <a href="/track">Track your order</a>
+        <a href="/consultation">Request engineer home visit</a>
         <a href="/#about">About us</a>
         <a href="/#contact">Contact us</a>
       </nav>
     </aside>
 
     <footer class="site-footer">
-      <p>&copy; Synapse Engineering &mdash; <a href="mailto:synapseengineering@gmail.com">Contact</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin">Staff admin</a></p>
+      <p>&copy; Synapse Engineering &mdash; <a href="/consultation">Engineer visit</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin">Staff admin</a></p>
     </footer>
   </div>
   <script>
@@ -719,7 +720,11 @@ app.get("/track", (_req, res) => {
     .status { margin-top: 1rem; padding: 1rem; border-radius: 0.65rem; background: linear-gradient(135deg, #eef3ff, #f5ecff); color: #241c7a; }
     .error { margin-top: 1rem; padding: 1rem; border-radius: 0.65rem; background: linear-gradient(135deg, #fff1f1, #ffe7e7); color: #b32025; }
     .tracker { margin-top: 1.5rem; display: grid; gap: 1rem; }
-    #trackMap { width: 100%; height: 280px; border-radius: 0.65rem; margin-top: 1rem; background: #fafbff; display: flex; align-items: center; justify-content: center; color: #555; text-align: center; padding: 1rem; }
+    #trackMap { width: 100%; height: 340px; border-radius: 0.65rem; margin-top: 1rem; background: #eef3ff; border: 1px solid #d8dbf0; }
+    .map-legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; margin-top: 0.75rem; font-size: 0.88rem; color: #444; }
+    .map-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .map-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .eta-box { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 0.5rem; background: #fff7ef; border-left: 4px solid #f0bb2d; color: #241c7a; font-weight: 700; }
     .track-row { display: grid; grid-template-columns: 1fr 1.2fr; gap: 1rem; }
     .track-row span:first-child { font-weight: 700; color: #241c7a; }
     .back { display: inline-block; margin-top: 1rem; color: #241c7a; text-decoration: none; }
@@ -743,22 +748,71 @@ app.get("/track", (_req, res) => {
       </form>
       <div id="trackResult" hidden class="status"></div>
       <div id="trackError" hidden class="error"></div>
-      <div id="trackMap" class="map-placeholder">Enter an order ID above to view its transit location on the map.</div>
-      <a class="back" href="/">â† Back to home</a>
+      <div id="trackMap">Enter an order ID above to view the delivery route on the map.</div>
+      <div id="mapLegend" class="map-legend" hidden>
+        <span><i style="background:#2e7d32"></i> Dispatch (goods from)</span>
+        <span><i style="background:#f0bb2d"></i> Goods in transit now</span>
+        <span><i style="background:#b32025"></i> Your address</span>
+      </div>
+      <a class="back" href="/">&larr; Back to home</a>
     </section>
   </main>
   <script>
     const trackForm = document.getElementById("track-form");
     const trackResult = document.getElementById("trackResult");
     const trackError = document.getElementById("trackError");
-    const trackMap = document.getElementById("trackMap");
-    let map;
-    let marker;
+    const trackMapEl = document.getElementById("trackMap");
+    const mapLegend = document.getElementById("mapLegend");
+    let trackMap;
+    let trackLayerGroup;
+
+    function mapPin(color) {
+      return L.divIcon({
+        className: "",
+        html: '<span style="display:block;width:12px;height:12px;border-radius:50%;background:' + color + ';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></span>',
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+      });
+    }
+
+    function drawTrackingRoute(data) {
+      const origin = data.origin || data.tracking.origin;
+      const dest = data.customerLocation;
+      const current = data.tracking.coordinates;
+      if (!origin || !dest || !current) return;
+
+      trackMapEl.innerHTML = "";
+      trackMap = L.map("trackMap");
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(trackMap);
+      trackLayerGroup = L.layerGroup().addTo(trackMap);
+      const points = [
+        [origin.lat, origin.lng],
+        [current.lat, current.lng],
+        [dest.lat, dest.lng]
+      ];
+      const routeLine = L.polyline(points, { color: "#241c7a", weight: 4, dashArray: "10 8" }).addTo(trackLayerGroup);
+      L.marker([origin.lat, origin.lng], { icon: mapPin("#2e7d32") })
+        .addTo(trackLayerGroup)
+        .bindPopup("Dispatch: " + (origin.label || "Synapse Engineering"));
+      L.marker([current.lat, current.lng], { icon: mapPin("#f0bb2d") })
+        .addTo(trackLayerGroup)
+        .bindPopup(data.tracking.currentLocation || "Goods in transit");
+      L.marker([dest.lat, dest.lng], { icon: mapPin("#b32025") })
+        .addTo(trackLayerGroup)
+        .bindPopup("Your delivery address");
+      trackMap.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
+      mapLegend.hidden = false;
+      setTimeout(function () { trackMap.invalidateSize(); }, 200);
+    }
 
     trackForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       trackResult.hidden = true;
       trackError.hidden = true;
+      mapLegend.hidden = true;
       const orderId = document.getElementById("orderId").value.trim();
       if (!orderId) {
         trackError.hidden = false;
@@ -767,7 +821,7 @@ app.get("/track", (_req, res) => {
       }
 
       try {
-        const response = await fetch(apiBase + '/api/orders/' + encodeURIComponent(orderId) + '/tracking');
+        const response = await fetch(apiBase + "/api/orders/" + encodeURIComponent(orderId) + "/tracking");
         if (!response.ok) {
           const body = await response.text();
           trackError.hidden = false;
@@ -776,37 +830,63 @@ app.get("/track", (_req, res) => {
         }
 
         const data = await response.json();
+        const eta = data.tracking.expectedArrivalAt
+          ? new Date(data.tracking.expectedArrivalAt).toLocaleString()
+          : "To be confirmed";
+        const originLabel = (data.origin && data.origin.label) ? data.origin.label : "Synapse dispatch";
+
         trackResult.hidden = false;
         trackResult.innerHTML =
           '<div class="tracker">' +
             '<div class="track-row"><span>Current stage</span><span>' + data.tracking.stage + '</span></div>' +
+            '<div class="track-row"><span>Shipped from</span><span>' + originLabel + '</span></div>' +
             '<div class="track-row"><span>Current location</span><span>' + data.tracking.currentLocation + '</span></div>' +
-            '<div class="track-row"><span>Coordinates</span><span>' + data.tracking.coordinates.lat.toFixed(4) + ', ' + data.tracking.coordinates.lng.toFixed(4) + '</span></div>' +
+            '<div class="eta-box">Expected arrival: ' + eta + '</div>' +
             '<div class="track-row"><span>Last updated</span><span>' + new Date(data.tracking.updatedAt).toLocaleString() + '</span></div>' +
           '</div>' +
-          '<p style="margin-top:1rem;">If you need more details, contact us at <a href="mailto:synapseengineering@gmail.com?subject=Customer%20Inquiry">synapseengineering@gmail.com</a> or <a href="tel:+263783944171">+263783944171</a>.</p>';
+          '<p style="margin-top:1rem;">Questions? <a href="tel:+263783944171">+263 783 944 171</a> &middot; <a href="mailto:synapseengineering@gmail.com">Email us</a></p>';
 
-        if (!map) {
-          trackMap.innerHTML = '';
-          map = L.map('trackMap').setView([data.tracking.coordinates.lat, data.tracking.coordinates.lng], 13);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
-          }).addTo(map);
-          marker = L.marker([data.tracking.coordinates.lat, data.tracking.coordinates.lng]).addTo(map)
-            .bindPopup(data.tracking.currentLocation || 'Current shipment location')
-            .openPopup();
-        } else {
-          map.setView([data.tracking.coordinates.lat, data.tracking.coordinates.lng], 13);
-          marker.setLatLng([data.tracking.coordinates.lat, data.tracking.coordinates.lng]).bindPopup(data.tracking.currentLocation || 'Current shipment location').openPopup();
-        }
-        trackMap.style.background = 'transparent';
+        drawTrackingRoute(data);
       } catch (error) {
         trackError.hidden = false;
         trackError.textContent = "Unable to reach the tracking service. Please try again later.";
       }
     });
   </script>
+</body>
+</html>`);
+});
+
+app.get("/consultation", (_req, res) => {
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Engineer home visit | Synapse Engineering</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #f5f8ff, #fff8ef); color: #1a1a1a; }
+    main { width: min(520px, 92vw); margin: 0 auto; padding: 2.5rem 0 3rem; text-align: center; }
+    h1 { color: #241c7a; font-size: 1.5rem; }
+    p { line-height: 1.65; color: #444; }
+    .call-btn {
+      display: inline-block; margin: 1.5rem 0 1rem; padding: 1.1rem 1.75rem;
+      background: linear-gradient(135deg, #2f2ab2, #241c7a); color: #fff;
+      text-decoration: none; font-weight: 700; font-size: 1.15rem; border-radius: 0.65rem;
+      box-shadow: 0 10px 24px rgba(36, 28, 122, 0.25);
+    }
+    .call-btn:hover { filter: brightness(1.05); }
+    .back { color: #241c7a; text-decoration: none; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Request an engineer home visit</h1>
+    <p>Need electrical repairs, fault finding, or a consultation at your home or site? Call our engineer directly and we will arrange a visit.</p>
+    <a class="call-btn" href="tel:+263783944171">Call engineer: +263 783 944 171</a>
+    <p class="muted" style="font-size:0.92rem;">Tap the button on your phone to dial Synapse Engineering.</p>
+    <p><a class="back" href="/">&larr; Back to home</a></p>
+  </main>
 </body>
 </html>`);
 });

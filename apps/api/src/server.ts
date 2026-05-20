@@ -3,7 +3,13 @@ import cors from "cors";
 import express from "express";
 import { z } from "zod";
 import type { PaymentMethod } from "@hardware/shared";
-import { HardwareDatabase, type DeliveryZone, type OrderRecord, type QuotationRecord } from "./db.js";
+import {
+  HardwareDatabase,
+  type DeliveryZone,
+  type DispatchSettings,
+  type OrderRecord,
+  type QuotationRecord
+} from "./db.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -138,6 +144,24 @@ function computeDeliveryFee(region: ZimbabweRegion, totalWeightKg: number, expre
   const weightBand = totalWeightKg <= 2 ? 0 : totalWeightKg <= 10 ? 3 : 8;
   const serviceFee = express ? 5 : 0;
   return zoneBase + weightBand + serviceFee;
+}
+
+const regionArrivalHours: Record<ZimbabweRegion, number> = {
+  Harare: 24,
+  Bulawayo: 48,
+  Manicaland: 72,
+  "Mashonaland Central": 60,
+  "Mashonaland East": 48,
+  "Mashonaland West": 60,
+  Masvingo: 72,
+  "Matabeleland North": 72,
+  "Matabeleland South": 72,
+  Midlands: 60
+};
+
+function estimateArrivalAt(region: ZimbabweRegion): string {
+  const hours = regionArrivalHours[region] ?? 72;
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 }
 
 function estimateZone(city: string): DeliveryZone {
@@ -422,6 +446,8 @@ app.post("/api/orders", async (req, res) => {
 
   const subtotal = pricedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const deliveryFee = computeDeliveryFee(parsed.data.region, 3, false);
+  const dispatch = await db.getDispatchSettings();
+  const now = new Date().toISOString();
   const order: OrderRecord = {
     id: `ord_${Date.now()}`,
     customerName: parsed.data.customerName,
@@ -438,9 +464,11 @@ app.post("/api/orders", async (req, res) => {
     total: subtotal + deliveryFee,
     tracking: {
       stage: "Order received",
-      currentLocation: "Synapse Engineering dispatch center",
-      coordinates: { lat: -18.1853, lng: 31.5519 },
-      updatedAt: new Date().toISOString()
+      currentLocation: dispatch.label,
+      coordinates: { lat: dispatch.lat, lng: dispatch.lng },
+      origin: { lat: dispatch.lat, lng: dispatch.lng, label: dispatch.label },
+      expectedArrivalAt: estimateArrivalAt(parsed.data.region),
+      updatedAt: now
     }
   };
 
@@ -459,13 +487,21 @@ app.get("/api/orders/:id", (req, res) => {
   res.json(order);
 });
 
-app.get("/api/orders/:id/tracking", (req, res) => {
+app.get("/api/orders/:id/tracking", async (req, res) => {
   const order = db.getOrder(String(req.params.id));
   if (!order) return res.status(404).json({ message: "Order not found" });
+  const dispatch = await db.getDispatchSettings();
+  const origin =
+    order.tracking.origin ??
+    ({ lat: dispatch.lat, lng: dispatch.lng, label: dispatch.label });
   res.json({
     orderId: order.id,
     customerLocation: order.customerLocation,
-    tracking: order.tracking
+    origin,
+    tracking: {
+      ...order.tracking,
+      origin: order.tracking.origin ?? origin
+    }
   });
 });
 
@@ -508,22 +544,58 @@ app.delete("/api/admin/quotations/:id", requireAdminAuth, async (req, res) => {
   res.status(204).send();
 });
 
+app.get("/api/admin/dispatch-settings", requireAdminAuth, async (_req, res) => {
+  res.json(await db.getDispatchSettings());
+});
+
+app.put("/api/admin/dispatch-settings", requireAdminAuth, async (req, res) => {
+  const parsed = z
+    .object({
+      label: z.string().min(2),
+      lat: z.number(),
+      lng: z.number()
+    })
+    .safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+  const settings: DispatchSettings = parsed.data;
+  await db.setDispatchSettings(settings);
+  res.json(settings);
+});
+
 app.patch("/api/admin/orders/:id/status", requireAdminAuth, async (req, res) => {
-  const parsed = z.object({
-    status: z.enum(["PENDING_PAYMENT", "PLACED", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"]),
-    stage: z.string().min(2).optional(),
-    currentLocation: z.string().min(2).optional(),
-    coordinates: z.object({ lat: z.number(), lng: z.number() }).optional()
-  }).safeParse(req.body);
+  const parsed = z
+    .object({
+      status: z.enum([
+        "PENDING_PAYMENT",
+        "PLACED",
+        "CONFIRMED",
+        "PACKED",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED"
+      ]),
+      stage: z.string().min(2).optional(),
+      currentLocation: z.string().min(2).optional(),
+      coordinates: z.object({ lat: z.number(), lng: z.number() }).optional(),
+      expectedArrivalAt: z.string().min(10).optional()
+    })
+    .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
 
   const order = db.getOrder(String(req.params.id));
   if (!order) return res.status(404).json({ message: "Order not found" });
+  const dispatch = await db.getDispatchSettings();
+  const existingOrigin =
+    order.tracking.origin ??
+    ({ lat: dispatch.lat, lng: dispatch.lng, label: dispatch.label });
   order.status = parsed.data.status;
   order.tracking = {
     stage: parsed.data.stage ?? order.tracking.stage,
     currentLocation: parsed.data.currentLocation ?? order.tracking.currentLocation,
     coordinates: parsed.data.coordinates ?? order.tracking.coordinates,
+    origin: existingOrigin,
+    expectedArrivalAt:
+      parsed.data.expectedArrivalAt ?? order.tracking.expectedArrivalAt,
     updatedAt: new Date().toISOString()
   };
   await db.updateOrder(order);
