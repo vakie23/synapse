@@ -66,6 +66,25 @@ app.get("/", (_req, res) => {
     .hero-overlay h1 { margin: 0 0 0.35rem; font-size: clamp(1.45rem, 4vw, 2.15rem); font-weight: 700; max-width: 36rem; }
     .hero-overlay .tagline { margin: 0 0 0.75rem; color: var(--brand-gold); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; }
     .hero-overlay .intro { margin: 0; max-width: 38rem; font-size: clamp(0.95rem, 2.5vw, 1.05rem); opacity: 0.96; line-height: 1.65; }
+    .home-services { margin-bottom: 2rem; }
+    .home-services h2 {
+      margin: 0 0 1rem; color: var(--brand-blue); font-size: 1.35rem;
+      border-bottom: 3px solid var(--brand-gold); padding-bottom: 0.45rem; display: inline-block;
+    }
+    .home-services .services-grid { margin-top: 0.5rem; }
+    .home-about, .home-contact {
+      margin-bottom: 2rem; padding: 1.25rem 1.35rem; border-radius: 1rem;
+      background: linear-gradient(135deg, #ffffff, var(--soft)); border: 1px solid #e4e6f5;
+      box-shadow: 0 8px 24px rgba(36, 28, 122, 0.06);
+    }
+    .home-about h2, .home-contact h2 { margin: 0 0 0.75rem; color: var(--brand-blue); font-size: 1.2rem; }
+    .site-nav-links { display: grid; gap: 0.45rem; }
+    .site-nav-links a {
+      display: block; padding: 0.85rem 1rem; border-radius: 0.65rem;
+      text-decoration: none; font-weight: 700; font-size: 0.92rem; color: var(--brand-blue);
+      background: linear-gradient(135deg, #fafbff, #fff); border: 1px solid #e4e6f5;
+    }
+    .site-nav-links a:hover { background: var(--sky); border-color: var(--brand-gold); }
     .menu-fab-wrap {
       position: fixed; top: 0.85rem; right: 0.85rem; z-index: 300;
       display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
@@ -173,6 +192,44 @@ app.get("/", (_req, res) => {
       </div>
     </section>
 
+    <section class="home-services" aria-labelledby="services-heading">
+      <h2 id="services-heading">Our core services</h2>
+      <div class="services-grid">
+        <article class="card"><h3>Electrical installations</h3><p>Domestic wiring, commercial and industrial installations, conduit layout, distribution boards, sockets, switches, and lighting systems.</p></article>
+        <article class="card"><h3>Solar energy solutions</h3><p>Solar system design and sizing, installation of panels/inverters/batteries, hybrid and off-grid setups, upgrades, and troubleshooting.</p></article>
+        <article class="card"><h3>Maintenance and repairs</h3><p>Fault finding, preventive maintenance, generator servicing, and replacement of damaged electrical components.</p></article>
+        <article class="card"><h3>Lighting solutions</h3><p>Indoor and outdoor lighting, security lighting, LED upgrades, and pole light installation.</p></article>
+        <article class="card"><h3>Electrical design and consulting</h3><p>System planning, load calculations, project supervision, and standards-compliant implementation.</p></article>
+        <article class="card"><h3>Specialized installations</h3><p>Smart home systems, cooker control units, waterproof sockets, and heavy-duty industrial connections.</p></article>
+        <article class="card"><h3>HT and LT line construction</h3><p>Construction of high and low tension lines, pole erection, conductor stringing/sagging, maintenance, and upgrades.</p></article>
+        <article class="card"><h3>Substation construction</h3><p>Substation builds including transformer installation, switchgear setup, protection systems, commissioning, and testing.</p></article>
+        <article class="card"><h3>Supply of electrical materials</h3><p>Reliable supply of cables, PVC conduits, switches, sockets, and related electrical accessories.</p></article>
+      </div>
+    </section>
+
+    <section class="home-about" id="about">
+      <h2>About us</h2>
+      <p>We deliver safe, quality electrical work for residential, commercial, industrial, and infrastructure projects.</p>
+      <div class="about-grid" style="margin-top:1rem;">
+        <article class="card"><h3>Our commitment</h3><p>Safety, quality workmanship, timely delivery, and customer satisfaction.</p></article>
+        <article class="card"><h3>Who we serve</h3><p>Homeowners, builders, mines, businesses, and property developers.</p></article>
+      </div>
+    </section>
+
+    <section class="home-contact" id="contact">
+      <h2>Contact us</h2>
+      <div class="contact-panel">
+        <div class="contact-box">
+          <p><strong>Email</strong><br><a href="mailto:synapseengineering@gmail.com">synapseengineering@gmail.com</a></p>
+          <p><strong>Phone</strong><br><a href="tel:+263783944171">+263 783 944 171</a></p>
+        </div>
+        <div class="actions" style="margin-top:0;">
+          <a class="button button-light" href="mailto:synapseengineering@gmail.com?subject=Customer%20Inquiry">Email us</a>
+          <a class="button button-secondary" href="tel:+263783944171">Call us</a>
+        </div>
+      </div>
+    </section>
+
     <div class="menu-fab-wrap">
       <button type="button" class="menu-fab" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteMenu">
         <span class="menu-dots" aria-hidden="true">⋯</span>
@@ -181,66 +238,12 @@ app.get("/", (_req, res) => {
     </div>
     <aside class="corner-menu" id="siteMenu" aria-label="Site menu">
       <p class="corner-menu-title">Menu</p>
-      <div class="accordion-list">
-        <details class="accordion">
-          <summary><span>Items, prices and quotation</span><span class="accordion-chevron">v</span></summary>
-          <div class="accordion-body">
-            <p>Browse products, see prices, and request a quotation with delivery details.</p>
-            <div class="actions">
-              <a class="button button-primary" href="/quotation">Open quotation page</a>
-              <a class="button button-light" href="/quotation-status">View saved quotation</a>
-            </div>
-          </div>
-        </details>
-        <details class="accordion">
-          <summary><span>Track your order</span><span class="accordion-chevron">v</span></summary>
-          <div class="accordion-body">
-            <p>Enter your order ID to see transit stage, location, and updates on a map.</p>
-            <div class="actions"><a class="button button-secondary" href="/track">Track an order</a></div>
-          </div>
-        </details>
-        <details class="accordion">
-          <summary><span>Our core services</span><span class="accordion-chevron">v</span></summary>
-          <div class="accordion-body">
-            <div class="services-grid">
-              <article class="card"><h3>Electrical installations</h3><p>Domestic wiring, commercial and industrial installations, conduit layout, distribution boards, sockets, switches, and lighting systems.</p></article>
-              <article class="card"><h3>Solar energy solutions</h3><p>Solar system design and sizing, installation of panels/inverters/batteries, hybrid and off-grid setups, upgrades, and troubleshooting.</p></article>
-              <article class="card"><h3>Maintenance and repairs</h3><p>Fault finding, preventive maintenance, generator servicing, and replacement of damaged electrical components.</p></article>
-              <article class="card"><h3>Lighting solutions</h3><p>Indoor and outdoor lighting, security lighting, LED upgrades, and pole light installation.</p></article>
-              <article class="card"><h3>Electrical design and consulting</h3><p>System planning, load calculations, project supervision, and standards-compliant implementation.</p></article>
-              <article class="card"><h3>Specialized installations</h3><p>Smart home systems, cooker control units, waterproof sockets, and heavy-duty industrial connections.</p></article>
-              <article class="card"><h3>HT and LT line construction</h3><p>Construction of high and low tension lines, pole erection, conductor stringing/sagging, maintenance, and upgrades.</p></article>
-              <article class="card"><h3>Substation construction</h3><p>Substation builds including transformer installation, switchgear setup, protection systems, commissioning, and testing.</p></article>
-              <article class="card"><h3>Supply of electrical materials</h3><p>Reliable supply of cables, PVC conduits, switches, sockets, and related electrical accessories.</p></article>
-            </div>
-          </div>
-        </details>
-        <details class="accordion">
-          <summary><span>About us</span><span class="accordion-chevron">v</span></summary>
-          <div class="accordion-body">
-            <p>We deliver safe, quality electrical work for residential, commercial, industrial, and infrastructure projects.</p>
-            <div class="about-grid">
-              <article class="card"><h3>Our commitment</h3><p>Safety, quality workmanship, timely delivery, and customer satisfaction.</p></article>
-              <article class="card"><h3>Who we serve</h3><p>Homeowners, builders, mines, businesses, and property developers.</p></article>
-            </div>
-          </div>
-        </details>
-        <details class="accordion">
-          <summary><span>Contact us</span><span class="accordion-chevron">v</span></summary>
-          <div class="accordion-body">
-            <div class="contact-panel">
-              <div class="contact-box">
-                <p><strong>Email</strong><br><a href="mailto:synapseengineering@gmail.com">synapseengineering@gmail.com</a></p>
-                <p><strong>Phone</strong><br><a href="tel:+263783944171">+263 783 944 171</a></p>
-              </div>
-              <div class="actions" style="margin-top:0;align-self:center;">
-                <a class="button button-light" href="mailto:synapseengineering@gmail.com?subject=Customer%20Inquiry">Email us</a>
-                <a class="button button-secondary" href="tel:+263783944171">Call us</a>
-              </div>
-            </div>
-          </div>
-        </details>
-      </div>
+      <nav class="site-nav-links" aria-label="Quick links">
+        <a href="/quotation">Items, prices and quotation</a>
+        <a href="/track">Track your order</a>
+        <a href="/#about">About us</a>
+        <a href="/#contact">Contact us</a>
+      </nav>
     </aside>
 
     <footer class="site-footer">
@@ -270,12 +273,6 @@ app.get("/", (_req, res) => {
         menuToggle.setAttribute("aria-expanded", "false");
         menuToggle.setAttribute("aria-label", "Open menu");
       }
-    });
-    document.querySelectorAll(".accordion").forEach((panel) => {
-      const chevron = panel.querySelector(".accordion-chevron");
-      const sync = () => { chevron.textContent = panel.open ? "^" : "v"; };
-      panel.addEventListener("toggle", sync);
-      sync();
     });
   </script>
 </body>
@@ -325,6 +322,7 @@ app.get("/quotation", (_req, res) => {
     .summary-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid #ececf2; }
     .total-row { font-size: 1.1rem; font-weight: 700; color: #241c7a; }
     .small { color: #666; font-size: 0.92rem; }
+    .location-btn-italic { font-style: italic; }
     .status { margin-top: 1rem; padding: 0.85rem; border-radius: 0.6rem; background: linear-gradient(135deg, #eef3ff, #f5ecff); color: #241c7a; }
     #pickupMap { width: 100%; height: 250px; border-radius: 0.65rem; margin-top: 0.5rem; background: #fafbff; }
     @media (max-width: 860px) {
@@ -338,8 +336,7 @@ app.get("/quotation", (_req, res) => {
   <main>
     <div class="topbar">
       <div>
-        <h1>Items, prices and quotation</h1>
-        <p>Select items, see prices, and request a quotation for delivery.</p>
+        <h1>Quotation</h1>
       </div>
       <div>
         <a href="/track" class="button secondary">Track your order</a>
@@ -349,9 +346,7 @@ app.get("/quotation", (_req, res) => {
     </div>
 
     <div class="layout">
-      <section class="panel" aria-labelledby="items-title">
-        <h2 id="items-title">Items and prices</h2>
-        <p>Select items, enter quantities, and see your total.</p>
+      <section class="panel">
         <div class="search-row">
           <input id="itemSearch" type="search" placeholder="Search items by name, category, or description" />
           <button id="itemSearchBtn" class="button primary" type="button">Search</button>
@@ -405,9 +400,8 @@ app.get("/quotation", (_req, res) => {
           </div>
           <div style="margin-top: 1rem;">
             <label>Pick customer location on map</label>
-            <p class="small">Tap/click the map to set delivery coordinates.</p>
             <div class="actions" style="margin-top: 0.4rem;">
-              <button id="detectLocationBtn" type="button" class="button" style="background:#eceffd;color:#241c7a;">Use my current location</button>
+              <button id="detectLocationBtn" type="button" class="button location-btn-italic" style="background:#eceffd;color:#241c7a;">Use my current location</button>
             </div>
             <p id="locationStatus" class="small" style="margin-top: 0.5rem;"></p>
             <div id="pickupMap"></div>
@@ -426,7 +420,6 @@ app.get("/quotation", (_req, res) => {
             <div class="summary-row"><span>Selected items total</span><strong id="subtotal">$0.00</strong></div>
             <div class="summary-row"><span>Estimated delivery</span><strong id="deliveryFee">$4.00</strong></div>
             <div class="summary-row total-row"><span>Grand total</span><strong id="grandTotal">$4.00</strong></div>
-            <p class="small">Customers can still contact Synapse Engineering directly after generating a quotation.</p>
           </div>
           <div class="actions">
             <button class="button primary" type="submit">Generate quotation</button>
@@ -502,7 +495,7 @@ app.get("/quotation", (_req, res) => {
         return;
       }
 
-      locationStatusEl.textContent = "Getting your current location...";
+      locationStatusEl.textContent = "";
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
@@ -510,7 +503,7 @@ app.get("/quotation", (_req, res) => {
           pickupMarker.setLatLng([lat, lng]);
           pickupMap.setView([lat, lng], 14);
           setCustomerLocation(lat, lng);
-          locationStatusEl.textContent = "Current location detected. You can still move the pin if needed.";
+          locationStatusEl.textContent = "";
         },
         () => {
           locationStatusEl.textContent = "Could not access your location. You can select location manually on the map.";
@@ -696,7 +689,6 @@ app.get("/quotation", (_req, res) => {
     });
     detectLocationBtn.addEventListener("click", detectCurrentLocation);
     initPickupMap();
-    detectCurrentLocation();
     loadProducts();
   </script>
 </body>
