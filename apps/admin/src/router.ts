@@ -139,6 +139,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f4f6fc; color: #1a1a1a; }
     main { width: min(1180px, 95vw); margin: 2rem auto; }
@@ -185,19 +186,24 @@ function renderAdminPage(pathPrefix = adminPath): string {
       font-size: 0.95rem;
     }
     details.collapsible[open] > summary::after { content: "▲"; }
-    .live-sync-note {
-      margin: 0 0 1rem; padding: 0.85rem 1rem; border-radius: 0.5rem;
-      background: linear-gradient(135deg, #eef3ff, #f5ecff); border-left: 4px solid #f0bb2d;
-      font-size: 0.92rem; color: #333;
+    .tracker { margin-top: 1rem; display: grid; gap: 0.75rem; }
+    .track-row { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0.75rem; }
+    .track-row span:first-child { font-weight: 700; color: #241c7a; }
+    #transitTrackMap {
+      width: 100%; height: 280px; border-radius: 0.65rem; margin-top: 1rem;
+      background: #fafbff; border: 1px solid #e6e8f5;
     }
+    .transit-order-card { cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+    .transit-order-card.is-active { border-color: #241c7a; box-shadow: 0 0 0 2px rgba(36, 28, 122, 0.12); }
+    @media (max-width: 700px) { .track-row { grid-template-columns: 1fr; } }
   </style>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body>
   <main>
     <details class="panel collapsible" open>
       <summary>Dashboard Overview</summary>
       <h1>Admin Dashboard</h1>
-      <p class="live-sync-note"><strong>Linked to the public website.</strong> When you add, edit, or delete products here, customers see the changes on the quotation page after they refresh (prices, names, stock, photos, and categories).</p>
       <div class="actions">
         <button class="primary" type="button" onclick="loadDashboard()">Refresh dashboard</button>
         <button class="secondary" type="button" onclick="document.getElementById('credentialsPanel').classList.toggle('hidden')">Change credentials</button>
@@ -285,8 +291,16 @@ function renderAdminPage(pathPrefix = adminPath): string {
       <summary>Goods in Transit</summary>
       <div class="split">
         <h2>Goods in Transit</h2>
-        <span class="muted">Active shipments currently on the road</span>
+        <span class="muted">Same live view customers see when tracking an order</span>
       </div>
+      <form id="transitTrackForm" class="stack" style="margin-top: 0.75rem;">
+        <input id="transitOrderId" type="search" placeholder="Order ID" required />
+        <button class="primary" type="submit">Check status</button>
+      </form>
+      <div id="transitTrackResult" class="tracker hidden"></div>
+      <div id="transitTrackMap"></div>
+      <p id="transitTrackError" class="muted hidden" style="margin-top: 0.75rem;"></p>
+      <h3 style="margin: 1.25rem 0 0.5rem; color: #241c7a; font-size: 1rem;">All shipments in transit</h3>
       <div id="transitList" class="list"></div>
     </details>
     <details class="panel collapsible" open>
@@ -314,6 +328,10 @@ function renderAdminPage(pathPrefix = adminPath): string {
     const quotationSearchBtn = document.getElementById("quotationSearchBtn");
     let allProducts = [];
     let allQuotations = [];
+    let allOrders = [];
+    let transitMap = null;
+    let transitMarker = null;
+    let activeTransitOrderId = "";
 
     function showStatus(message) {
       dashboardStatus.hidden = false;
@@ -497,6 +515,56 @@ function renderAdminPage(pathPrefix = adminPath): string {
       }).join("");
     }
 
+    function showTransitTracking(order) {
+      const transitTrackResult = document.getElementById("transitTrackResult");
+      const transitTrackError = document.getElementById("transitTrackError");
+      const transitTrackMapEl = document.getElementById("transitTrackMap");
+
+      if (!order || !order.tracking) {
+        transitTrackResult.classList.add("hidden");
+        transitTrackError.classList.remove("hidden");
+        transitTrackError.textContent = "Order not found. Please verify the order ID.";
+        if (transitTrackMapEl) transitTrackMapEl.style.display = "none";
+        return;
+      }
+
+      const tracking = order.tracking;
+      const lat = Number(tracking.coordinates?.lat);
+      const lng = Number(tracking.coordinates?.lng);
+      const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
+
+      transitTrackError.classList.add("hidden");
+      transitTrackResult.classList.remove("hidden");
+      transitTrackResult.innerHTML =
+        '<div class="track-row"><span>Order ID</span><span>' + escapeHtml(order.id || "N/A") + '</span></div>' +
+        '<div class="track-row"><span>Current stage</span><span>' + escapeHtml(tracking.stage || "N/A") + '</span></div>' +
+        '<div class="track-row"><span>Current location</span><span>' + escapeHtml(tracking.currentLocation || "N/A") + '</span></div>' +
+        '<div class="track-row"><span>Coordinates</span><span>' + (hasCoordinates ? (lat.toFixed(4) + ", " + lng.toFixed(4)) : "N/A") + '</span></div>' +
+        '<div class="track-row"><span>Last updated</span><span>' + (tracking.updatedAt ? new Date(tracking.updatedAt).toLocaleString() : "N/A") + '</span></div>';
+
+      if (!hasCoordinates || !transitTrackMapEl) {
+        transitTrackMapEl.style.display = "none";
+        return;
+      }
+
+      transitTrackMapEl.style.display = "block";
+      if (!transitMap) {
+        transitTrackMapEl.innerHTML = "";
+        transitMap = L.map("transitTrackMap").setView([lat, lng], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(transitMap);
+        transitMarker = L.marker([lat, lng]).addTo(transitMap);
+      } else {
+        transitMap.setView([lat, lng], 13);
+        transitMarker.setLatLng([lat, lng]);
+      }
+      transitMarker
+        .bindPopup(tracking.currentLocation || "Current shipment location")
+        .openPopup();
+    }
+
     function renderTransit(orders) {
       const transitOrders = orders.filter((order) => {
         const status = String(order.status || "");
@@ -504,28 +572,41 @@ function renderAdminPage(pathPrefix = adminPath): string {
       });
 
       document.getElementById("transitCount").textContent = String(transitOrders.length);
+      const transitListEl = document.getElementById("transitList");
       if (!transitOrders.length) {
-        document.getElementById("transitList").innerHTML = '<div class="muted">No goods currently in transit.</div>';
+        transitListEl.innerHTML = '<div class="muted">No goods currently in transit.</div>';
+        document.getElementById("transitTrackResult").classList.add("hidden");
+        document.getElementById("transitTrackMap").style.display = "none";
         return;
       }
 
-      document.getElementById("transitList").innerHTML = transitOrders.map((order) => {
+      transitListEl.innerHTML = transitOrders.map((order) => {
         const tracking = order.tracking || {};
-        const coordinates = tracking.coordinates || {};
-        const lat = Number(coordinates.lat);
-        const lng = Number(coordinates.lng);
-        const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
-        const mapsUrl = hasCoordinates ? ("https://www.google.com/maps?q=" + lat + "," + lng) : "";
-        return '<article class="item">' +
-          '<div class="split"><h3>' + order.customerName + '</h3><span class="chip">' + order.status + '</span></div>' +
-          '<div class="muted">Order ID: ' + order.id + '</div>' +
-          '<div>Stage: <strong>' + (tracking.stage || "N/A") + '</strong></div>' +
-          '<div>Current location: <strong>' + (tracking.currentLocation || "N/A") + '</strong></div>' +
-          '<div>Coordinates: <strong>' + (hasCoordinates ? (lat.toFixed(5) + ", " + lng.toFixed(5)) : "N/A") + '</strong></div>' +
-          '<div>Last update: <strong>' + (tracking.updatedAt ? new Date(tracking.updatedAt).toLocaleString() : "N/A") + '</strong></div>' +
-          (hasCoordinates ? ('<div style="margin-top:0.5rem;"><a class="primary" target="_blank" rel="noopener noreferrer" href="' + mapsUrl + '">Open live map</a></div>') : "") +
+        const isActive = order.id === activeTransitOrderId ? " is-active" : "";
+        return '<article class="item transit-order-card' + isActive + '" data-order-id="' + escapeHtml(order.id) + '">' +
+          '<div class="split"><h3>' + escapeHtml(order.customerName) + '</h3><span class="chip">' + escapeHtml(order.status) + '</span></div>' +
+          '<div class="muted">Order ID: ' + escapeHtml(order.id) + '</div>' +
+          '<div>Stage: <strong>' + escapeHtml(tracking.stage || "N/A") + '</strong></div>' +
+          '<div>Current location: <strong>' + escapeHtml(tracking.currentLocation || "N/A") + '</strong></div>' +
         '</article>';
       }).join("");
+
+      transitListEl.querySelectorAll(".transit-order-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          const orderId = card.getAttribute("data-order-id");
+          const order = allOrders.find((item) => item.id === orderId);
+          activeTransitOrderId = orderId || "";
+          transitListEl.querySelectorAll(".transit-order-card").forEach((node) => node.classList.remove("is-active"));
+          card.classList.add("is-active");
+          document.getElementById("transitOrderId").value = orderId || "";
+          showTransitTracking(order);
+        });
+      });
+
+      const selected = transitOrders.find((order) => order.id === activeTransitOrderId) || transitOrders[0];
+      activeTransitOrderId = selected.id;
+      document.getElementById("transitOrderId").value = selected.id;
+      showTransitTracking(selected);
     }
 
     async function loadDashboard() {
@@ -548,6 +629,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
 
         allProducts = products;
         allQuotations = quotations;
+        allOrders = orders;
         renderProducts(products, productSearchInput.value);
         renderQuotations(quotations, quotationSearchInput.value);
         renderTransit(orders);
@@ -823,6 +905,36 @@ function renderAdminPage(pathPrefix = adminPath): string {
         }
       } catch {
         showStatus("Could not update credentials. Please try again.");
+      }
+    });
+
+
+    document.getElementById("transitTrackForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const orderId = String(document.getElementById("transitOrderId").value || "").trim();
+      if (!orderId) return;
+
+      const localOrder = allOrders.find((order) => order.id === orderId);
+      if (localOrder) {
+        activeTransitOrderId = orderId;
+        showTransitTracking(localOrder);
+        document.querySelectorAll(".transit-order-card").forEach((card) => {
+          card.classList.toggle("is-active", card.getAttribute("data-order-id") === orderId);
+        });
+        return;
+      }
+
+      try {
+        const response = await fetch(apiBase + "/api/orders/" + encodeURIComponent(orderId) + "/tracking");
+        if (!response.ok) {
+          showTransitTracking(null);
+          return;
+        }
+        const data = await response.json();
+        activeTransitOrderId = orderId;
+        showTransitTracking({ id: orderId, tracking: data.tracking });
+      } catch {
+        showTransitTracking(null);
       }
     });
 
