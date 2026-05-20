@@ -189,10 +189,18 @@ function renderAdminPage(pathPrefix = adminPath): string {
     .tracker { margin-top: 1rem; display: grid; gap: 0.75rem; }
     .track-row { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0.75rem; }
     .track-row span:first-child { font-weight: 700; color: #241c7a; }
-    #transitTrackMap {
-      width: 100%; height: 280px; border-radius: 0.65rem; margin-top: 1rem;
-      background: #fafbff; border: 1px solid #e6e8f5;
+    .transit-map-panel {
+      margin-top: 1rem; padding: 1rem 1.1rem; border-radius: 0.75rem;
+      border: 2px solid #f0bb2d; background: linear-gradient(135deg, #fafbff, #fff);
     }
+    .transit-map-panel h3 { margin: 0 0 0.35rem; color: #241c7a; font-size: 1.05rem; }
+  #transitTrackMap {
+      width: 100%; min-height: 320px; height: 320px; border-radius: 0.65rem; margin-top: 0.75rem;
+      background: #eef3ff; border: 1px solid #c8d0f0;
+    }
+    #transitMapHint { margin: 0 0 0.5rem; font-size: 0.92rem; }
+    .stat-clickable { cursor: pointer; }
+    .stat-clickable:hover { background: #e8eeff; }
     .transit-order-card { cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
     .transit-order-card.is-active { border-color: #241c7a; box-shadow: 0 0 0 2px rgba(36, 28, 122, 0.12); }
     @media (max-width: 700px) { .track-row { grid-template-columns: 1fr; } }
@@ -201,8 +209,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
 </head>
 <body>
   <main>
-    <details class="panel collapsible" open>
-      <summary>Dashboard Overview</summary>
+    <section class="panel">
       <h1>Admin Dashboard</h1>
       <div class="actions">
         <button class="primary" type="button" onclick="loadDashboard()">Refresh dashboard</button>
@@ -224,9 +231,31 @@ function renderAdminPage(pathPrefix = adminPath): string {
         <div class="stat"><span>Total products</span><strong id="productCount">0</strong></div>
         <div class="stat"><span>Customer quotations</span><strong id="quotationCount">0</strong></div>
         <div class="stat"><span>Orders</span><strong id="orderCount">0</strong></div>
-        <div class="stat"><span>Goods in transit</span><strong id="transitCount">0</strong></div>
+        <div class="stat stat-clickable" id="transitStatCard" title="Jump to live shipment map"><span>Goods in transit</span><strong id="transitCount">0</strong></div>
       </div>
+    </section>
+
+    <details class="panel collapsible" id="transit-section" open>
+      <summary>Goods in Transit — live map</summary>
+      <div class="split">
+        <h2>Goods in Transit</h2>
+        <span class="muted">Track shipments on the map (same as customer order tracking)</span>
+      </div>
+      <form id="transitTrackForm" class="stack" style="margin-top: 0.75rem;">
+        <input id="transitOrderId" type="search" placeholder="Enter order ID (e.g. ord_173...)" required />
+        <button class="primary" type="submit">Show on map</button>
+      </form>
+      <div id="transitTrackResult" class="tracker hidden"></div>
+      <div class="transit-map-panel">
+        <h3>Live shipment map</h3>
+        <p id="transitMapHint" class="muted">Enter an order ID above, or click a shipment below, to see its location on this map.</p>
+        <div id="transitTrackMap"></div>
+      </div>
+      <p id="transitTrackError" class="muted hidden" style="margin-top: 0.75rem;"></p>
+      <h3 style="margin: 1.25rem 0 0.5rem; color: #241c7a; font-size: 1rem;">Shipments in transit</h3>
+      <div id="transitList" class="list"></div>
     </details>
+
     <div class="grid">
       <details class="panel collapsible" open>
         <summary>Add Product</summary>
@@ -287,22 +316,6 @@ function renderAdminPage(pathPrefix = adminPath): string {
         <div id="quotationsList" class="list"></div>
       </details>
     </div>
-    <details class="panel collapsible" open>
-      <summary>Goods in Transit</summary>
-      <div class="split">
-        <h2>Goods in Transit</h2>
-        <span class="muted">Same live view customers see when tracking an order</span>
-      </div>
-      <form id="transitTrackForm" class="stack" style="margin-top: 0.75rem;">
-        <input id="transitOrderId" type="search" placeholder="Order ID" required />
-        <button class="primary" type="submit">Check status</button>
-      </form>
-      <div id="transitTrackResult" class="tracker hidden"></div>
-      <div id="transitTrackMap"></div>
-      <p id="transitTrackError" class="muted hidden" style="margin-top: 0.75rem;"></p>
-      <h3 style="margin: 1.25rem 0 0.5rem; color: #241c7a; font-size: 1rem;">All shipments in transit</h3>
-      <div id="transitList" class="list"></div>
-    </details>
     <details class="panel collapsible" open>
       <summary>Orders and Delivery</summary>
       <div class="split">
@@ -542,11 +555,15 @@ function renderAdminPage(pathPrefix = adminPath): string {
         '<div class="track-row"><span>Coordinates</span><span>' + (hasCoordinates ? (lat.toFixed(4) + ", " + lng.toFixed(4)) : "N/A") + '</span></div>' +
         '<div class="track-row"><span>Last updated</span><span>' + (tracking.updatedAt ? new Date(tracking.updatedAt).toLocaleString() : "N/A") + '</span></div>';
 
+      const transitMapHint = document.getElementById("transitMapHint");
       if (!hasCoordinates || !transitTrackMapEl) {
-        transitTrackMapEl.style.display = "none";
+        if (transitMapHint) transitMapHint.textContent = "This order has no map coordinates yet. Update delivery status with a location.";
+        transitTrackMapEl.style.display = "block";
+        transitTrackMapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;padding:1rem;text-align:center;">No GPS coordinates for this order yet.</div>';
         return;
       }
 
+      if (transitMapHint) transitMapHint.textContent = "Shipment location:";
       transitTrackMapEl.style.display = "block";
       if (!transitMap) {
         transitTrackMapEl.innerHTML = "";
@@ -563,6 +580,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
       transitMarker
         .bindPopup(tracking.currentLocation || "Current shipment location")
         .openPopup();
+      setTimeout(() => { if (transitMap) transitMap.invalidateSize(); }, 150);
     }
 
     function renderTransit(orders) {
@@ -935,6 +953,14 @@ function renderAdminPage(pathPrefix = adminPath): string {
         showTransitTracking({ id: orderId, tracking: data.tracking });
       } catch {
         showTransitTracking(null);
+      }
+    });
+
+    document.getElementById("transitStatCard").addEventListener("click", () => {
+      const section = document.getElementById("transit-section");
+      if (section) {
+        section.open = true;
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     });
 
