@@ -2,6 +2,8 @@
 
 This project can be published with a Capacitor Android wrapper in `apps/mobile`.
 
+**Full step-by-step checklist:** see `apps/mobile/PLAYSTORE.md`
+
 ## 1) Prerequisites
 
 - Deployed public web URL (HTTPS) for customer app

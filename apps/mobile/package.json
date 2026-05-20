@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "echo \"Mobile wrapper uses deployed web URL. Configure APP_URL first.\"",
-    "build": "echo \"Use Android Studio to build release AAB.\"",
+    "dev": "echo \"Mobile app loads the deployed website. Run: npm run android:prepare\"",
+    "build": "node scripts/prepare-android.mjs",
+    "android:prepare": "node scripts/prepare-android.mjs",
     "android:init": "cap add android",
     "android:sync": "cap sync android",
     "android:open": "cap open android",
+    "android:bundle": "cd android && gradlew.bat bundleRelease",
     "lint": "echo \"No lint configured for mobile\""
   },
   "dependencies": {

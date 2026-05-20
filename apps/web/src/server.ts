@@ -918,6 +918,51 @@ app.get("/quotation-status", (_req, res) => {
 </html>`);
 });
 
+app.get("/privacy", (_req, res) => {
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy | Synapse Engineering</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f7f9ff; color: #1a1a1a; line-height: 1.65; }
+    main { width: min(760px, 92vw); margin: 0 auto; padding: 2rem 0 3rem; }
+    h1, h2 { color: #241c7a; }
+    a { color: #241c7a; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Privacy Policy</h1>
+    <p><strong>Synapse Engineering</strong> (&quot;we&quot;, &quot;us&quot;) operates the Synapse Engineering mobile app and website for hardware supplies, quotations, and order tracking.</p>
+    <h2>Information we collect</h2>
+    <ul>
+      <li>Contact details you provide (name, phone, email, delivery address).</li>
+      <li>Quotation and order details (products, quantities, prices).</li>
+      <li>Delivery location coordinates when you choose to use map or GPS on the quotation page.</li>
+    </ul>
+    <h2>How we use information</h2>
+    <ul>
+      <li>To prepare quotations and fulfil orders.</li>
+      <li>To calculate delivery fees and show order tracking updates.</li>
+      <li>To contact you about your request or order.</li>
+    </ul>
+    <h2>Location data</h2>
+    <p>Location is used only when you tap &quot;Use my current location&quot; or set a point on the map for delivery. We do not track your location in the background.</p>
+    <h2>Data sharing</h2>
+    <p>We do not sell your personal data. We may share information only as needed to deliver your order or comply with law.</p>
+    <h2>Data retention</h2>
+    <p>We keep quotation and order records as long as needed for business and legal purposes.</p>
+    <h2>Contact</h2>
+    <p>Email: <a href="mailto:synapseengineering@gmail.com">synapseengineering@gmail.com</a><br>
+    Phone: <a href="tel:+263783944171">+263 783 944 171</a></p>
+    <p><a href="/">Back to home</a></p>
+  </main>
+</body>
+</html>`);
+});
+
 const port = Number(process.env.PORT ?? 3000);
 app.listen(port, () => {
   console.log(`Web app running on http://localhost:${port}`);

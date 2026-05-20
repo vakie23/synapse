@@ -14,7 +14,10 @@
     "dev:admin": "npm run dev -w @hardware/admin",
     "build": "npm run build -w @hardware/shared && npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "mobile:prepare": "npm run android:prepare -w @hardware/mobile",
+    "mobile:open": "npm run android:open -w @hardware/mobile",
+    "mobile:bundle": "npm run android:bundle -w @hardware/mobile"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
