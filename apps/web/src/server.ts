@@ -292,7 +292,15 @@ app.get("/quotation", (_req, res) => {
     body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #f5f8ff, #fff8ef); color: #1a1a1a; }
     main { width: min(1100px, 94vw); margin: 0 auto; padding: 2rem 0 3rem; }
     h1, h2 { color: #241c7a; }
-    .topbar { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+    .back-link {
+      position: fixed; top: 0.85rem; left: 0.85rem; z-index: 300;
+      display: grid; place-items: center; width: 2.75rem; height: 2.75rem;
+      border-radius: 0.55rem; border: 1px solid #d8dbf0;
+      background: rgba(255, 255, 255, 0.96); box-shadow: 0 8px 24px rgba(36, 28, 122, 0.18);
+      color: #241c7a; text-decoration: none; font-size: 1.4rem; font-weight: 700; line-height: 1;
+    }
+    .back-link:hover { background: #fff; border-color: #f0bb2d; }
+    .topbar { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: flex-end; margin-bottom: 0.25rem; }
     .panel { background: linear-gradient(135deg, #ffffff, #f7f9ff); border-radius: 0.8rem; padding: 1rem; box-shadow: 0 10px 30px rgba(36,28,122,0.10); margin-top: 1rem; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     th, td { border-bottom: 1px solid #e8e8ee; text-align: left; padding: 0.8rem 0.5rem; vertical-align: top; }
@@ -333,16 +341,10 @@ app.get("/quotation", (_req, res) => {
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body>
+  <a href="/" class="back-link" aria-label="Back to home">&larr;</a>
   <main>
     <div class="topbar">
-      <div>
-        <h1>Quotation</h1>
-      </div>
-      <div>
-        <a href="/track" class="button secondary">Track your order</a>
-        <a href="/quotation-status" class="button" style="background:#eceffd;color:#241c7a;">View saved quotation</a>
-        <a href="/" class="button primary">Back to home page</a>
-      </div>
+      <a href="/track" class="button secondary">Track your order</a>
     </div>
 
     <div class="layout">
@@ -423,6 +425,7 @@ app.get("/quotation", (_req, res) => {
           </div>
           <div class="actions">
             <button class="button primary" type="submit">Generate quotation</button>
+            <a class="button" href="/quotation-status" style="background:#eceffd;color:#241c7a;">View saved quotation</a>
             <a class="button secondary" href="tel:+263783944171">Direct phone call</a>
             <a class="button" href="mailto:synapseengineering@gmail.com?subject=Quotation%20Request" style="background:#eceffd;color:#241c7a;">Email us</a>
           </div>
