@@ -66,15 +66,14 @@ app.get("/", (_req, res) => {
     .hero-banner {
       position: relative; margin-bottom: 1.5rem; border-radius: 1rem; overflow: hidden;
       box-shadow: 0 16px 40px rgba(36, 28, 122, 0.22); border-bottom: 4px solid var(--brand-gold);
-      min-height: min(58vh, 520px);
     }
     .hero-banner img {
-      width: 100%; height: min(58vh, 520px); object-fit: cover; display: block;
+      width: 100%; height: auto; display: block; vertical-align: middle;
     }
     .hero-overlay {
       position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
       padding: clamp(1.25rem, 4vw, 2rem); color: #fff;
-      background: linear-gradient(180deg, rgba(20, 16, 70, 0.15) 0%, rgba(36, 28, 122, 0.72) 55%, rgba(26, 20, 96, 0.92) 100%);
+      background: linear-gradient(180deg, rgba(20, 16, 70, 0) 0%, rgba(36, 28, 122, 0.45) 50%, rgba(26, 20, 96, 0.88) 100%);
     }
     .hero-overlay h1 { margin: 0 0 0.35rem; font-size: clamp(1.45rem, 4vw, 2.15rem); font-weight: 700; max-width: 36rem; }
     .hero-overlay .tagline { margin: 0 0 0.75rem; color: var(--brand-gold); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; }
