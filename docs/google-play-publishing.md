@@ -1,59 +1,59 @@
 # Google Play Publishing Guide
 
-This project can be published with a Capacitor Android wrapper in `apps/mobile`.
+The **Synapse Engineering** Android app lives in `apps/mobile` (Capacitor). It loads your deployed customer app over HTTPS — the same content as the website, optimized for mobile.
 
-**Full step-by-step checklist:** see `apps/mobile/PLAYSTORE.md`
+**Checklist:** `apps/mobile/PLAYSTORE.md`
 
 ## 1) Prerequisites
 
-- Deployed public web URL (HTTPS) for customer app
+- Customer app and API deployed on HTTPS (Render or custom domain)
 - Android Studio installed
 - Google Play Console account
 - Java/Android SDK configured
 
-## 2) Configure Mobile Wrapper URL
-
-Set your deployed web URL:
+## 2) Configure production URLs
 
 ```powershell
-$env:APP_URL="https://your-web-domain.example"
+$env:APP_URL="https://synapse-web-k718.onrender.com"
+$env:API_URL="https://synapse-api-k718.onrender.com"
 ```
 
-`apps/mobile/capacitor.config.ts` uses `APP_URL` for the in-app web content.
+Copy `apps/mobile/.env.example` for reference.
 
-## 3) Initialize Android Project
+## 3) Prepare the Android project
 
 From repo root:
 
 ```powershell
-npm run android:init -w @hardware/mobile
-npm run android:sync -w @hardware/mobile
-npm run android:open -w @hardware/mobile
+npm install
+npm run app:prepare
+npm run app:open
 ```
 
-## 4) Build Release AAB in Android Studio
+## 4) Build signed release AAB
 
-In Android Studio:
+In Android Studio: **Build** → **Generate Signed Bundle / APK** → **Android App Bundle**
 
-1. Open the generated Android project.
-2. Set app icon, app name, and version code/version name.
-3. Build signed bundle:
-   - `Build` -> `Generate Signed Bundle / APK`
-   - Select `Android App Bundle (AAB)`
-4. Save keystore securely (do not lose it).
+Or from repo root (with `android/keystore.properties`):
 
-## 5) Play Console Submission
+```powershell
+npm run app:release
+```
 
-Upload AAB and complete:
+## 5) Play Console submission
+
+Upload the `.aab` and complete:
 
 - App content forms
-- Privacy policy URL
+- Privacy policy URL (`/privacy`)
+- Terms URL (`/terms`) — recommended
 - Screenshots + feature graphic
 - Data safety section
-- Testing track (internal/closed) before production
+- Internal testing track before production
 
-## 6) Important Notes for This App
+## 6) Important notes
 
-- Do not use localhost URLs in production.
-- Keep API and web domains under HTTPS.
-- Because location is used, describe location usage clearly in privacy policy.
+- Never use `localhost` in `APP_URL` for Play Store builds.
+- Keep API and customer app on HTTPS.
+- Location permission is used for delivery map on the shop page — describe this in Data safety and privacy policy.
+- After each app update, bump `versionCode` in `apps/mobile/android/app/build.gradle`.

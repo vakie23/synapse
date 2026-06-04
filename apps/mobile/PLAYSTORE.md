@@ -1,10 +1,12 @@
-# Publish Synapse Engineering to Google Play
+# Publish Synapse Engineering on Google Play
 
-This folder is a **Capacitor Android wrapper** around your live website. The Play Store app loads:
+The **Synapse Engineering** Android app (`apps/mobile`) is a Capacitor shell that loads your deployed customer app over HTTPS.
+
+Production app URL (set `APP_URL`):
 
 `https://synapse-web-k718.onrender.com`
 
-So your website and API must stay online and on HTTPS before you publish.
+Your API must also stay online at `API_URL` (default: `https://synapse-api-k718.onrender.com`).
 
 ## What is already configured
 
@@ -12,36 +14,39 @@ So your website and API must stay online and on HTTPS before you publish.
 - App name: **Synapse Engineering**
 - Min Android: API 24 (Android 7.0)
 - Target SDK: 36 (Play Store requirement)
-- Internet + location permissions (for quotation map)
-- Privacy policy page: `https://synapse-web-k718.onrender.com/privacy`
-- Terms and conditions: `https://synapse-web-k718.onrender.com/terms`
+- Internet + location permissions (shop delivery map)
+- Privacy: `https://synapse-web-k718.onrender.com/privacy`
+- Terms: `https://synapse-web-k718.onrender.com/terms`
+- Maps and CDN hosts allowed in WebView navigation
 
 ## Step 1 — Install tools
 
 1. [Android Studio](https://developer.android.com/studio) (latest)
 2. [Google Play Console](https://play.google.com/console) account ($25 one-time fee)
 
-## Step 2 — Sync the Android project
+## Step 2 — Build and sync the Android app
 
 From the **repository root** in PowerShell:
 
 ```powershell
 cd C:\Users\User\OneDrive\Desktop\hardware-supplies-app\hardware-supplies-app
 npm install
-npm run mobile:prepare
 ```
 
-Optional: use a different web URL:
+Set your live HTTPS URLs (required for Play Store — no localhost):
 
 ```powershell
-$env:APP_URL="https://your-custom-domain.com"
-npm run mobile:prepare
+$env:APP_URL="https://synapse-web-k718.onrender.com"
+$env:API_URL="https://synapse-api-k718.onrender.com"
+npm run app:prepare
 ```
+
+`app:prepare` builds the customer app server and syncs Capacitor into the Android project.
 
 ## Step 3 — Open in Android Studio
 
 ```powershell
-npm run mobile:open
+npm run app:open
 ```
 
 Wait for Gradle sync to finish.
@@ -50,44 +55,44 @@ Wait for Gradle sync to finish.
 
 1. Android Studio → **Build** → **Generate Signed App Bundle / APK**
 2. Choose **Android App Bundle**
-3. **Create new** keystore — save the `.jks` file and passwords somewhere safe (you cannot recover a lost keystore)
-4. Or copy `android/keystore.properties.example` to `android/keystore.properties` and point it at your keystore, then build from the command line
+3. **Create new** keystore — save the `.jks` file and passwords securely
+4. Or copy `android/keystore.properties.example` to `android/keystore.properties`
 
 ## Step 5 — Build release AAB
 
-In Android Studio:
+**Android Studio:** Build → Generate Signed Bundle / APK → AAB
 
-1. **Build** → **Generate Signed Bundle / APK**
-2. **Android App Bundle (AAB)**
-3. Select your release keystore
-4. Output: `android/app/release/app-release.aab`
-
-Command line (after `keystore.properties` is set):
+**Command line** (after `keystore.properties` is set):
 
 ```powershell
-cd apps\mobile\android
-.\gradlew.bat bundleRelease
+npm run app:bundle
 ```
+
+Or full pipeline from repo root:
+
+```powershell
+$env:APP_URL="https://synapse-web-k718.onrender.com"
+$env:API_URL="https://synapse-api-k718.onrender.com"
+npm run app:release
+```
+
+Output: `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`
 
 ## Step 6 — Play Console listing
 
-Create a new app and upload the `.aab`.
-
-| Item | Suggested value |
-|------|-----------------|
+| Item | Value |
+|------|--------|
 | App name | Synapse Engineering |
 | Category | Shopping or Business |
-| Privacy policy URL | https://synapse-web-k718.onrender.com/privacy |
+| Privacy policy | https://synapse-web-k718.onrender.com/privacy |
 | Contact email | synapseengineering@gmail.com |
 
-### Data safety (important)
+### Data safety
 
-Declare roughly:
-
-- **Location** — optional, for delivery map on quotation page
+- **Location** — optional, for delivery map on shop page
 - **Personal info** — name, email, phone, address (quotations/orders)
 - Data is **not sold**
-- Data is collected for **app functionality**
+- Used for **app functionality**
 
 ### Store graphics (you provide)
 
@@ -95,28 +100,28 @@ Declare roughly:
 - Feature graphic 1024×500
 - Phone screenshots (at least 2)
 
-Replace default launcher icons in Android Studio: **File** → **New** → **Image Asset**.
+Replace default launcher icons: **File** → **New** → **Image Asset** in Android Studio.
 
-## Step 7 — Testing before production
+## Step 7 — Test before production
 
-1. Upload AAB to **Internal testing** track
-2. Add your Gmail as a tester
-3. Install from Play Store test link
-4. Test: home, quotation, map location, track order
+1. Upload AAB to **Internal testing**
+2. Add your Gmail as tester
+3. Test: home, shop, quotation, order, map location, track order
 
 Then promote to **Production**.
 
-## Updating the app later
+## Updating the app
 
-1. Bump `versionCode` and `versionName` in `apps/mobile/android/app/build.gradle`
-2. Deploy website/API changes to Render
-3. Run `npm run mobile:prepare` and build a new AAB
-4. Upload new AAB to Play Console
+1. Deploy API + customer app changes to Render
+2. Bump `versionCode` and `versionName` in `apps/mobile/android/app/build.gradle`
+3. Run `npm run app:prepare` with production `APP_URL` / `API_URL`
+4. Build new AAB and upload to Play Console
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| Blank white screen | Check `APP_URL` is HTTPS and the site loads in Chrome on the phone |
-| Map / location fails | Allow location permission when prompted; use HTTPS site |
-| Gradle fails | Open Android Studio and let it install missing SDK components |
+| Blank screen | Confirm `APP_URL` is HTTPS and loads in Chrome on the phone |
+| Map fails | Allow location when prompted; check `allowNavigation` hosts in `capacitor.config.ts` |
+| Products empty | API must be running; set `API_BASE_URL` on Render web service |
+| Gradle fails | Open Android Studio and install missing SDK components |

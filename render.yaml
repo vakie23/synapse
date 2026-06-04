@@ -25,6 +25,7 @@ services:
       sizeGB: 1
   - type: web
     name: synapse-web
+    # Customer app (website + Google Play WebView). Set APP_URL in apps/mobile to this service URL.
     env: node
     region: oregon
     branch: main

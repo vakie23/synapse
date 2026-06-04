@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApiProxy } from "./api-proxy.js";
 import { renderPrivacyPage, renderTermsPage } from "./legal-pages.js";
+import { mobileMetaHtml } from "./mobile-meta.js";
 import { renderShopPage } from "./shop-page.js";
 // @ts-expect-error Admin router is built by the @hardware/admin workspace package.
 import { createAdminRouter } from "../../admin/dist/router.js";
@@ -25,6 +26,7 @@ app.get("/", (_req, res) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  ${mobileMetaHtml}
   <title>Synapse Engineering</title>
   <style>
     :root {

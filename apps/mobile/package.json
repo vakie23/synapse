@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "echo \"Mobile app loads the deployed website. Run: npm run android:prepare\"",
+    "dev": "echo \"Synapse Android app loads the deployed customer app. Run: npm run app:prepare from repo root\"",
     "build": "node scripts/prepare-android.mjs",
     "android:prepare": "node scripts/prepare-android.mjs",
+    "android:release": "node scripts/build-release.mjs",
     "android:init": "cap add android",
     "android:sync": "cap sync android",
     "android:open": "cap open android",

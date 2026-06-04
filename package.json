@@ -8,16 +8,21 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm:dev:api\" \"npm:dev:web\" \"npm:dev:admin\"",
+    "dev": "concurrently \"npm:dev:api\" \"npm:dev:app\" \"npm:dev:admin\"",
     "dev:api": "npm run dev -w @hardware/api",
+    "dev:app": "npm run dev -w @hardware/web",
     "dev:web": "npm run dev -w @hardware/web",
     "dev:admin": "npm run dev -w @hardware/admin",
     "build": "npm run build -w @hardware/shared && npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "mobile:prepare": "npm run android:prepare -w @hardware/mobile",
-    "mobile:open": "npm run android:open -w @hardware/mobile",
-    "mobile:bundle": "npm run android:bundle -w @hardware/mobile"
+    "app:prepare": "npm run android:prepare -w @hardware/mobile",
+    "app:open": "npm run android:open -w @hardware/mobile",
+    "app:bundle": "npm run android:bundle -w @hardware/mobile",
+    "app:release": "node apps/mobile/scripts/build-release.mjs",
+    "mobile:prepare": "npm run app:prepare",
+    "mobile:open": "npm run app:open",
+    "mobile:bundle": "npm run app:bundle"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

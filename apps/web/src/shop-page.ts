@@ -1,9 +1,12 @@
+import { mobileMetaHtml } from "./mobile-meta.js";
+
 export function renderShopPage(apiBase: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  ${mobileMetaHtml}
   <title>Shop | Synapse Engineering</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>

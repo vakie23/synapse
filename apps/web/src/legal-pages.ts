@@ -1,3 +1,5 @@
+import { mobileMetaHtml } from "./mobile-meta.js";
+
 const legalPageStyles = `
     body { font-family: Arial, sans-serif; margin: 0; background: #f7f9ff; color: #1a1a1a; line-height: 1.65; }
     main { width: min(760px, 92vw); margin: 0 auto; padding: 2rem 0 3rem; }
@@ -14,6 +16,7 @@ function legalPageShell(title: string, bodyHtml: string): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  ${mobileMetaHtml}
   <title>${title} | Synapse Engineering</title>
   <style>${legalPageStyles}</style>
 </head>
