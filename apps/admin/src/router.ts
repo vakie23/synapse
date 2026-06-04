@@ -813,7 +813,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
         if (response.ok) {
           productForm.reset();
           await loadDashboard();
-          showStatus("Product saved. It is now live on the website quotation page.");
+          showStatus("Product saved. It is now live on the shop page.");
         } else {
           showStatus("Could not save product. Please check the values and try again.");
         }
@@ -1032,7 +1032,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
 
         if (response.ok) {
           await loadDashboard();
-          showStatus("Product updated. Changes are live on the website quotation page.");
+          showStatus("Product updated. Changes are live on the shop page.");
         } else {
           showStatus("Could not update product. Please check the values and try again.");
         }

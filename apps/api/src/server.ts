@@ -276,6 +276,7 @@ app.get("/api/products", (req, res) => {
 });
 
 app.get("/api/categories", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   res.json(db.getCategories());
 });
 

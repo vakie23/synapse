@@ -1,7 +1,9 @@
 ﻿import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderCheckoutPage } from "./checkout-page.js";
+import { createApiProxy } from "./api-proxy.js";
+import { renderPrivacyPage, renderTermsPage } from "./legal-pages.js";
+import { renderShopPage } from "./shop-page.js";
 // @ts-expect-error Admin router is built by the @hardware/admin workspace package.
 import { createAdminRouter } from "../../admin/dist/router.js";
 
@@ -11,7 +13,11 @@ app.use(express.static(path.join(webRoot, "public")));
 app.use("/admin", createAdminRouter("/admin"));
 
 const logoUrl = process.env.LOGO_URL ?? "";
-const apiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
+const serverApiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
+/** Same-origin proxy so shop and admin always use the same API database. */
+const publicApiBase = "/api-proxy";
+
+app.use(publicApiBase, createApiProxy(serverApiBase));
 
 app.get("/", (_req, res) => {
   res.type("html").send(`<!doctype html>
@@ -240,8 +246,7 @@ app.get("/", (_req, res) => {
     <aside class="corner-menu" id="siteMenu" aria-label="Site menu">
       <p class="corner-menu-title">Menu</p>
       <nav class="site-nav-links" aria-label="Quick links">
-        <a href="/checkout">Shop and checkout</a>
-        <a href="/quotation">Items, prices and quotation</a>
+        <a href="/shop">Shop</a>
         <a href="/track">Track your order</a>
         <a href="/consultation">Request engineer home visit</a>
         <a href="/#about">About us</a>
@@ -250,7 +255,7 @@ app.get("/", (_req, res) => {
     </aside>
 
     <footer class="site-footer">
-      <p>&copy; Synapse Engineering &mdash; <a href="/checkout">Checkout</a> &middot; <a href="/consultation">Engineer visit</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin">Staff admin</a></p>
+      <p>&copy; Synapse Engineering &mdash; <a href="/shop">Shop</a> &middot; <a href="/consultation">Engineer visit</a> &middot; <a href="/track">Track order</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/admin">Staff admin</a></p>
     </footer>
   </div>
   <script>
@@ -283,433 +288,16 @@ app.get("/", (_req, res) => {
 </html>`);
 });
 
+app.get("/shop", (_req, res) => {
+  res.type("html").send(renderShopPage(publicApiBase));
+});
+
 app.get("/quotation", (_req, res) => {
-  res.type("html").send(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quotation | Synapse Engineering</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #f5f8ff, #fff8ef); color: #1a1a1a; }
-    main { width: min(1100px, 94vw); margin: 0 auto; padding: 2rem 0 3rem; }
-    h1, h2 { color: #241c7a; }
-    .back-link {
-      position: fixed; top: 0.85rem; left: 0.85rem; z-index: 300;
-      display: grid; place-items: center; width: 2.75rem; height: 2.75rem;
-      border-radius: 0.55rem; border: 1px solid #d8dbf0;
-      background: rgba(255, 255, 255, 0.96); box-shadow: 0 8px 24px rgba(36, 28, 122, 0.18);
-      color: #241c7a; text-decoration: none; font-size: 1.4rem; font-weight: 700; line-height: 1;
-    }
-    .back-link:hover { background: #fff; border-color: #f0bb2d; }
-    .topbar { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: flex-end; margin-bottom: 0.25rem; }
-    .panel { background: linear-gradient(135deg, #ffffff, #f7f9ff); border-radius: 0.8rem; padding: 1rem; box-shadow: 0 10px 30px rgba(36,28,122,0.10); margin-top: 1rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border-bottom: 1px solid #e8e8ee; text-align: left; padding: 0.8rem 0.5rem; vertical-align: top; }
-    th { color: #241c7a; }
-    .note { background: #fff7ef; padding: 1rem; border-left: 5px solid #f0bb2d; border-radius: 0.4rem; }
-    .actions { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; }
-    .button { display: inline-block; padding: 0.85rem 1rem; border-radius: 0.5rem; text-decoration: none; font-weight: 700; box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
-    .primary { background: linear-gradient(135deg, #2f2ab2, #241c7a); color: white; }
-    .secondary { background: linear-gradient(135deg, #d53d42, #b32025); color: white; }
-    .layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1rem; }
-    .item-list { display: grid; gap: 1.25rem; }
-    .category-group { border: 1px solid #e4e6f5; border-radius: 0.75rem; background: #fff; overflow: hidden; box-shadow: 0 4px 14px rgba(36,28,122,0.06); }
-    .category-heading {
-      margin: 0; padding: 0.75rem 1rem; font-size: 0.95rem; color: #241c7a;
-      background: linear-gradient(135deg, #eef3ff, #f7f9ff); border-bottom: 3px solid #f0bb2d;
-    }
-    .category-items { display: grid; gap: 0.75rem; padding: 0.85rem; }
-    .search-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.7rem 0 0.9rem; }
-    .search-row input { flex: 1 1 240px; }
-    .search-row button { border: 0; cursor: pointer; }
-    .item-card { display: grid; grid-template-columns: auto 1fr auto; gap: 0.8rem; align-items: start; padding: 0.9rem; border: 1px solid #e8e8ee; border-radius: 0.7rem; background: linear-gradient(135deg, #ffffff, #eef3ff); }
-    .item-card h3 { margin: 0 0 0.25rem; color: #241c7a; font-size: 1rem; }
-    .item-card p { margin: 0.1rem 0; }
-    .qty-input, input, textarea, select { width: 100%; padding: 0.7rem; border: 1px solid #cfd4ea; border-radius: 0.5rem; font: inherit; }
-    label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
-    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-    .summary-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid #ececf2; }
-    .total-row { font-size: 1.1rem; font-weight: 700; color: #241c7a; }
-    .small { color: #666; font-size: 0.92rem; }
-    .location-btn-italic { font-style: italic; }
-    .status { margin-top: 1rem; padding: 0.85rem; border-radius: 0.6rem; background: linear-gradient(135deg, #eef3ff, #f5ecff); color: #241c7a; }
-    #pickupMap { width: 100%; height: 250px; border-radius: 0.65rem; margin-top: 0.5rem; background: #fafbff; }
-    @media (max-width: 860px) {
-      .layout, .field-grid { grid-template-columns: 1fr; }
-      .item-card { grid-template-columns: auto 1fr; }
-    }
-  </style>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-</head>
-<body>
-  <a href="/" class="back-link" aria-label="Back to home">&larr;</a>
-  <main>
-    <div class="topbar">
-      <a href="/checkout" class="button secondary">Shop and checkout</a>
-      <a href="/track" class="button secondary">Track your order</a>
-    </div>
+  res.redirect(301, "/shop");
+});
 
-    <div class="layout">
-      <section class="panel">
-        <div class="search-row">
-          <input id="itemSearch" type="search" placeholder="Search items by name, category, or description" />
-          <button id="itemSearchBtn" class="button primary" type="button">Search</button>
-        </div>
-        <div id="item-list" class="item-list" aria-live="polite"></div>
-      </section>
-
-      <section class="panel" aria-labelledby="quote-title">
-        <h2 id="quote-title">Your quotation</h2>
-        <form id="quotation-form">
-          <div class="field-grid">
-            <div>
-              <label for="customerName">Full name</label>
-              <input id="customerName" name="customerName" required />
-            </div>
-            <div>
-              <label for="phone">Phone number</label>
-              <input id="phone" name="phone" required />
-            </div>
-            <div>
-              <label for="email">Email address</label>
-              <input id="email" name="email" type="email" required />
-            </div>
-            <div>
-              <label for="requiredDate">Date required</label>
-              <input id="requiredDate" name="requiredDate" type="date" required />
-            </div>
-            <div>
-              <label for="city">Town or city</label>
-              <input id="city" name="city" required />
-            </div>
-            <div>
-              <label for="region">Delivery region</label>
-              <select id="region" name="region">
-                <option value="Harare">Harare</option>
-                <option value="Bulawayo">Bulawayo</option>
-                <option value="Manicaland">Manicaland</option>
-                <option value="Mashonaland Central">Mashonaland Central</option>
-                <option value="Mashonaland East">Mashonaland East</option>
-                <option value="Mashonaland West">Mashonaland West</option>
-                <option value="Masvingo">Masvingo</option>
-                <option value="Matabeleland North">Matabeleland North</option>
-                <option value="Matabeleland South">Matabeleland South</option>
-                <option value="Midlands">Midlands</option>
-              </select>
-            </div>
-          </div>
-          <div style="margin-top: 1rem;">
-            <label for="physicalAddress">Physical address</label>
-            <textarea id="physicalAddress" name="physicalAddress" rows="3" required></textarea>
-          </div>
-          <div style="margin-top: 1rem;">
-            <label>Pick customer location on map</label>
-            <div class="actions" style="margin-top: 0.4rem;">
-              <button id="detectLocationBtn" type="button" class="button location-btn-italic" style="background:#eceffd;color:#241c7a;">Use my current location</button>
-            </div>
-            <p id="locationStatus" class="small" style="margin-top: 0.5rem;"></p>
-            <div id="pickupMap"></div>
-            <div class="field-grid" style="margin-top: 0.7rem;">
-              <div>
-                <label for="customerLat">Latitude</label>
-                <input id="customerLat" name="customerLat" type="number" step="0.000001" readonly required />
-              </div>
-              <div>
-                <label for="customerLng">Longitude</label>
-                <input id="customerLng" name="customerLng" type="number" step="0.000001" readonly required />
-              </div>
-            </div>
-          </div>
-          <div class="note" style="margin-top: 1rem;">
-            <div class="summary-row"><span>Selected items total</span><strong id="subtotal">$0.00</strong></div>
-            <div class="summary-row"><span>Estimated delivery</span><strong id="deliveryFee">$4.00</strong></div>
-            <div class="summary-row total-row"><span>Grand total</span><strong id="grandTotal">$4.00</strong></div>
-          </div>
-          <div class="actions">
-            <button class="button primary" type="submit">Generate quotation</button>
-            <a class="button" href="/quotation-status" style="background:#eceffd;color:#241c7a;">View saved quotation</a>
-            <a class="button secondary" href="tel:+263783944171">Direct phone call</a>
-            <a class="button" href="mailto:synapseengineering@gmail.com?subject=Quotation%20Request" style="background:#eceffd;color:#241c7a;">Email us</a>
-          </div>
-        </form>
-        <div id="status" class="status" hidden></div>
-      </section>
-    </div>
-  </main>
-  <script>
-    const apiBase = ${JSON.stringify(apiBase)};
-
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    const itemList = document.getElementById("item-list");
-    const subtotalEl = document.getElementById("subtotal");
-    const deliveryFeeEl = document.getElementById("deliveryFee");
-    const grandTotalEl = document.getElementById("grandTotal");
-    const statusEl = document.getElementById("status");
-    const itemSearchInput = document.getElementById("itemSearch");
-    const itemSearchBtn = document.getElementById("itemSearchBtn");
-    const locationStatusEl = document.getElementById("locationStatus");
-    const detectLocationBtn = document.getElementById("detectLocationBtn");
-    const form = document.getElementById("quotation-form");
-    const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-    const regionBaseFees = {
-      "Harare": 4,
-      "Bulawayo": 7,
-      "Manicaland": 8,
-      "Mashonaland Central": 7.5,
-      "Mashonaland East": 6.5,
-      "Mashonaland West": 7,
-      "Masvingo": 8.5,
-      "Matabeleland North": 9,
-      "Matabeleland South": 9,
-      "Midlands": 8
-    };
-    let products = [];
-    let pickupMap;
-    let pickupMarker;
-
-    function setCustomerLocation(lat, lng) {
-      document.getElementById("customerLat").value = String(Number(lat).toFixed(6));
-      document.getElementById("customerLng").value = String(Number(lng).toFixed(6));
-    }
-
-    function initPickupMap() {
-      const defaultLat = -17.8252;
-      const defaultLng = 31.0335;
-      pickupMap = L.map("pickupMap").setView([defaultLat, defaultLng], 12);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors"
-      }).addTo(pickupMap);
-
-      pickupMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(pickupMap);
-      setCustomerLocation(defaultLat, defaultLng);
-
-      pickupMap.on("click", (event) => {
-        const { lat, lng } = event.latlng;
-        pickupMarker.setLatLng([lat, lng]);
-        setCustomerLocation(lat, lng);
-      });
-
-      pickupMarker.on("dragend", () => {
-        const position = pickupMarker.getLatLng();
-        setCustomerLocation(position.lat, position.lng);
-      });
-    }
-
-    function detectCurrentLocation() {
-      if (!navigator.geolocation) {
-        locationStatusEl.textContent = "Geolocation is not supported on this browser.";
-        return;
-      }
-
-      locationStatusEl.textContent = "";
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          pickupMarker.setLatLng([lat, lng]);
-          pickupMap.setView([lat, lng], 14);
-          setCustomerLocation(lat, lng);
-          locationStatusEl.textContent = "";
-        },
-        () => {
-          locationStatusEl.textContent = "Could not access your location. You can select location manually on the map.";
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-
-    function getSelectedLines() {
-      return products
-        .map((product) => {
-          const checkbox = document.getElementById("pick-" + product.id);
-          const quantityInput = document.getElementById("qty-" + product.id);
-          const quantity = Number(quantityInput.value || 0);
-          if (!checkbox.checked || quantity <= 0) return null;
-          return { productId: product.id, quantity };
-        })
-        .filter(Boolean);
-    }
-
-    async function updateTotals() {
-      const lines = getSelectedLines();
-      const region = document.getElementById("region").value;
-      if (lines.length === 0) {
-        const baseFee = regionBaseFees[region] ?? 4;
-        subtotalEl.textContent = currency.format(0);
-        deliveryFeeEl.textContent = currency.format(baseFee);
-        grandTotalEl.textContent = currency.format(baseFee);
-        return;
-      }
-
-      const totalWeightKg = lines.reduce((sum, line) => {
-        const product = products.find((item) => item.id === line.productId);
-        return sum + ((product?.weightKg || 0) * line.quantity);
-      }, 0);
-
-      const response = await fetch(apiBase + "/api/cart/price", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lines, delivery: { region, totalWeightKg, express: false } })
-      });
-      const data = await response.json();
-      subtotalEl.textContent = currency.format(data.subtotal || 0);
-      deliveryFeeEl.textContent = currency.format(data.deliveryFee || 0);
-      grandTotalEl.textContent = currency.format(data.total || 0);
-    }
-
-    const categoryOrder = [
-      "Conduits and fittings",
-      "Boxes and panels",
-      "Cables",
-      "Sockets and switches",
-      "Control units"
-    ];
-
-    function productImageHtml(product) {
-      if (!product.imageUrl) {
-        return '<div style="width:100%;max-width:140px;height:100px;border-radius:0.5rem;background:#eef2ff;border:1px solid #dfe3f5;margin-bottom:0.45rem;"></div>';
-      }
-      const src = product.imageUrl.startsWith("http://") || product.imageUrl.startsWith("https://")
-        ? product.imageUrl
-        : apiBase + (product.imageUrl.startsWith("/") ? product.imageUrl : "/" + product.imageUrl);
-      return '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(product.name) + '" style="width:100%;max-width:140px;height:100px;object-fit:cover;border-radius:0.5rem;border:1px solid #dfe3f5;margin-bottom:0.45rem;" />';
-    }
-
-    function renderProductCard(product) {
-      return '<label class="item-card" for="pick-' + escapeHtml(product.id) + '">' +
-        '<input id="pick-' + escapeHtml(product.id) + '" type="checkbox" />' +
-        '<div>' + productImageHtml(product) +
-        '<h3>' + escapeHtml(product.name) + '</h3>' +
-        '<p class="small">' + escapeHtml(product.description) + '</p>' +
-        '<p><strong>' + currency.format(product.price) + '</strong> per ' + escapeHtml(product.unit) + '</p>' +
-        '</div>' +
-        '<div><label for="qty-' + escapeHtml(product.id) + '">Quantity</label>' +
-        '<input class="qty-input" id="qty-' + escapeHtml(product.id) + '" type="number" min="0" value="0" /></div>' +
-        '</label>';
-    }
-
-    function renderProducts() {
-      const byCategory = new Map();
-      products.forEach((product) => {
-        const category = product.category || "Other";
-        if (!byCategory.has(category)) byCategory.set(category, []);
-        byCategory.get(category).push(product);
-      });
-
-      const categories = [...byCategory.keys()].sort((a, b) => {
-        const ai = categoryOrder.indexOf(a);
-        const bi = categoryOrder.indexOf(b);
-        if (ai === -1 && bi === -1) return a.localeCompare(b);
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      });
-
-      itemList.innerHTML = categories.map((category) =>
-        '<section class="category-group">' +
-        '<h3 class="category-heading">' + escapeHtml(category) + '</h3>' +
-        '<div class="category-items">' +
-        byCategory.get(category).map(renderProductCard).join("") +
-        '</div></section>'
-      ).join("");
-
-
-      itemList.querySelectorAll("input").forEach((input) => {
-        input.addEventListener("input", updateTotals);
-        input.addEventListener("change", updateTotals);
-      });
-    }
-
-    async function loadProducts(searchQuery = "") {
-      const query = String(searchQuery || "").trim();
-      const path = query ? ("/api/products?search=" + encodeURIComponent(query)) : "/api/products";
-      const response = await fetch(apiBase + path);
-      products = await response.json();
-      renderProducts();
-      updateTotals();
-    }
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const lines = getSelectedLines();
-      if (lines.length === 0) {
-        statusEl.hidden = false;
-        statusEl.textContent = "Please choose at least one item and enter a quantity.";
-        return;
-      }
-
-      const region = document.getElementById("region").value;
-      const city = document.getElementById("city").value;
-      const totalWeightKg = lines.reduce((sum, line) => {
-        const product = products.find((item) => item.id === line.productId);
-        return sum + ((product?.weightKg || 0) * line.quantity);
-      }, 0);
-
-      const payload = {
-        customerName: document.getElementById("customerName").value,
-        phone: document.getElementById("phone").value,
-        email: document.getElementById("email").value,
-        city,
-        customerLocation: {
-          lat: Number(document.getElementById("customerLat").value),
-          lng: Number(document.getElementById("customerLng").value)
-        },
-        physicalAddress: document.getElementById("physicalAddress").value,
-        requiredDate: document.getElementById("requiredDate").value,
-        lines,
-        delivery: { region, totalWeightKg, express: false }
-      };
-
-      const response = await fetch(apiBase + "/api/quotation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        statusEl.hidden = false;
-        statusEl.textContent = "Could not generate quotation. Please check all fields and try again.";
-        return;
-      }
-
-      statusEl.hidden = false;
-      statusEl.innerHTML = "<strong>Quotation created:</strong> " + escapeHtml(data.quotationId) +
-        "<br><strong>Total:</strong> " + escapeHtml(currency.format(data.total)) +
-        "<br><strong>Customer:</strong> " + escapeHtml(data.customerName) +
-        "<br><strong>Phone:</strong> " + escapeHtml(data.phone) +
-        "<br><strong>Email:</strong> " + escapeHtml(data.email) +
-        "<br><strong>Date required:</strong> " + escapeHtml(data.requiredDate) +
-        "<br><strong>Address:</strong> " + escapeHtml(data.physicalAddress) +
-        "<br><br><a href='/quotation-status?id=" + encodeURIComponent(data.quotationId) + "' class='button primary'>View latest quotation total</a> " +
-        "<a href='/track' class='button secondary'>Track your order</a>";
-    });
-
-    document.getElementById("region").addEventListener("change", updateTotals);
-    itemSearchBtn.addEventListener("click", () => loadProducts(itemSearchInput.value));
-    itemSearchInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        loadProducts(itemSearchInput.value);
-      }
-    });
-    detectLocationBtn.addEventListener("click", detectCurrentLocation);
-    initPickupMap();
-    loadProducts();
-  </script>
-</body>
-</html>`);
+app.get("/checkout", (_req, res) => {
+  res.redirect(301, "/shop");
 });
 
 app.get("/track", (_req, res) => {
@@ -771,7 +359,7 @@ app.get("/track", (_req, res) => {
     </section>
   </main>
   <script>
-    const apiBase = ${JSON.stringify(apiBase)};
+    const apiBase = ${JSON.stringify(publicApiBase)};
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -951,7 +539,7 @@ app.get("/quotation-status", (_req, res) => {
         </div>
         <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
           <button class="button primary" type="submit">Check quotation</button>
-          <a class="button secondary" href="/quotation">Back to quotation form</a>
+          <a class="button secondary" href="/shop">Back to shop</a>
         </div>
       </form>
       <div id="status" class="status" hidden></div>
@@ -962,7 +550,7 @@ app.get("/quotation-status", (_req, res) => {
     </section>
   </main>
   <script>
-    const apiBase = ${JSON.stringify(apiBase)};
+    const apiBase = ${JSON.stringify(publicApiBase)};
     const lookupForm = document.getElementById("lookupForm");
     const statusEl = document.getElementById("status");
     const resultPanel = document.getElementById("resultPanel");
@@ -1022,53 +610,12 @@ app.get("/quotation-status", (_req, res) => {
 </html>`);
 });
 
-app.get("/checkout", (_req, res) => {
-  res.type("html").send(renderCheckoutPage(apiBase));
+app.get("/privacy", (_req, res) => {
+  res.type("html").send(renderPrivacyPage());
 });
 
-app.get("/privacy", (_req, res) => {
-  res.type("html").send(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Privacy Policy | Synapse Engineering</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #f7f9ff; color: #1a1a1a; line-height: 1.65; }
-    main { width: min(760px, 92vw); margin: 0 auto; padding: 2rem 0 3rem; }
-    h1, h2 { color: #241c7a; }
-    a { color: #241c7a; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>Privacy Policy</h1>
-    <p><strong>Synapse Engineering</strong> (&quot;we&quot;, &quot;us&quot;) operates the Synapse Engineering mobile app and website for hardware supplies, quotations, and order tracking.</p>
-    <h2>Information we collect</h2>
-    <ul>
-      <li>Contact details you provide (name, phone, email, delivery address).</li>
-      <li>Quotation and order details (products, quantities, prices).</li>
-      <li>Delivery location coordinates when you choose to use map or GPS on the quotation page.</li>
-    </ul>
-    <h2>How we use information</h2>
-    <ul>
-      <li>To prepare quotations and fulfil orders.</li>
-      <li>To calculate delivery fees and show order tracking updates.</li>
-      <li>To contact you about your request or order.</li>
-    </ul>
-    <h2>Location data</h2>
-    <p>Location is used only when you tap &quot;Use my current location&quot; or set a point on the map for delivery. We do not track your location in the background.</p>
-    <h2>Data sharing</h2>
-    <p>We do not sell your personal data. We may share information only as needed to deliver your order or comply with law.</p>
-    <h2>Data retention</h2>
-    <p>We keep quotation and order records as long as needed for business and legal purposes.</p>
-    <h2>Contact</h2>
-    <p>Email: <a href="mailto:synapseengineering@gmail.com">synapseengineering@gmail.com</a><br>
-    Phone: <a href="tel:+263783944171">+263 783 944 171</a></p>
-    <p><a href="/">Back to home</a></p>
-  </main>
-</body>
-</html>`);
+app.get("/terms", (_req, res) => {
+  res.type("html").send(renderTermsPage());
 });
 
 const port = Number(process.env.PORT ?? 3000);

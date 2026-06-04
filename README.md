@@ -4,7 +4,7 @@ Accessible ecommerce starter for Synapse Engineering to sell electrical hardware
 
 ## Apps
 - `apps/api`: Backend API for products, cart pricing, orders, and admin operations.
-- `apps/web`: Customer-facing web app with landing page, checkout, and quotation pages.
+- `apps/web`: Customer-facing web app with landing page and shop (quotations + orders).
 - `apps/admin`: Internal admin dashboard shell.
 - `apps/mobile`: Capacitor wrapper that loads the deployed web app for Google Play publishing.
 
@@ -15,14 +15,12 @@ Accessible ecommerce starter for Synapse Engineering to sell electrical hardware
 4. API health: `http://localhost:4000/health`
 5. Web app: `http://localhost:3000`
 6. Admin app: `http://localhost:3200` (also at `http://localhost:3000/admin`)
-7. Quotation page: `http://localhost:3000/quotation`
-8. Checkout page: `http://localhost:3000/checkout`
-9. Run API tests: `npm run test -w @hardware/api`
+7. Shop: `http://localhost:3000/shop` (request a quotation or place an order)
+8. Run API tests: `npm run test -w @hardware/api`
 
 ## Business Features
 - Front page with company name, service summary, and contact actions.
-- Quotation page with electrical items, prices, and quotation workflow.
-- Checkout page to place orders with delivery location and payment choice.
+- Shop page with electrical items, prices, quotation requests, and order checkout.
 - Customer quotation API endpoint: `POST /api/quotation`
 - Delivery location capture with customer GPS coordinates.
 - Goods-in-transit tracking endpoint: `GET /api/orders/:id/tracking`

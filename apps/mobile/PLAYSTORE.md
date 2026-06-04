@@ -14,6 +14,7 @@ So your website and API must stay online and on HTTPS before you publish.
 - Target SDK: 36 (Play Store requirement)
 - Internet + location permissions (for quotation map)
 - Privacy policy page: `https://synapse-web-k718.onrender.com/privacy`
+- Terms and conditions: `https://synapse-web-k718.onrender.com/terms`
 
 ## Step 1 — Install tools
 

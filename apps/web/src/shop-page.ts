@@ -1,10 +1,10 @@
-export function renderCheckoutPage(apiBase: string): string {
+export function renderShopPage(apiBase: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Checkout | Synapse Engineering</title>
+  <title>Shop | Synapse Engineering</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #f5f8ff, #fff8ef); color: #1a1a1a; }
@@ -30,7 +30,12 @@ export function renderCheckoutPage(apiBase: string): string {
     .item-card { display: grid; grid-template-columns: auto 1fr auto; gap: 0.8rem; align-items: start; padding: 0.9rem; border: 1px solid #e8e8ee; border-radius: 0.7rem; background: linear-gradient(135deg, #ffffff, #eef3ff); }
     .item-card h3 { margin: 0 0 0.25rem; color: #241c7a; font-size: 1rem; }
     .item-card p { margin: 0.1rem 0; }
-    .qty-input, input, textarea, select { width: 100%; padding: 0.7rem; border: 1px solid #cfd4ea; border-radius: 0.5rem; font: inherit; }
+    .item-card .product-photo,
+    .item-card .photo-placeholder {
+      width: 100%; height: 200px; object-fit: cover; border-radius: 0.5rem;
+      border: 1px solid #dfe3f5; margin-bottom: 0.45rem; display: block; background: #eef2ff;
+    }
+    .qty-input, input, textarea, select { width: 100%; padding: 0.7rem; border: 1px solid #cfd4ea; border-radius: 0.5rem; font: inherit; box-sizing: border-box; }
     label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
     .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
     .summary-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid #ececf2; }
@@ -44,6 +49,15 @@ export function renderCheckoutPage(apiBase: string): string {
     .status { margin-top: 1rem; padding: 0.85rem; border-radius: 0.6rem; background: linear-gradient(135deg, #eef3ff, #f5ecff); color: #241c7a; }
     .status[role="alert"] { background: linear-gradient(135deg, #fff1f1, #ffe7e7); color: #b32025; }
     #pickupMap { width: 100%; height: 250px; border-radius: 0.65rem; margin-top: 0.5rem; background: #fafbff; }
+    .mode-fieldset { border: 1px solid #e4e6f5; border-radius: 0.65rem; padding: 0.85rem 1rem 1rem; margin: 0 0 1rem; background: #fafbff; }
+    .mode-fieldset legend { color: #241c7a; font-weight: 700; padding: 0 0.35rem; }
+    .mode-options { display: grid; gap: 0.55rem; margin-top: 0.35rem; }
+    .mode-option { display: flex; align-items: flex-start; gap: 0.55rem; font-weight: 400; cursor: pointer; }
+    .mode-option input { width: auto; margin-top: 0.2rem; }
+    .mode-option span strong { display: block; color: #241c7a; }
+    .mode-option span em { display: block; font-size: 0.88rem; color: #666; font-style: normal; margin-top: 0.15rem; }
+    .site-legal-footer { margin-top: 1.5rem; text-align: center; font-size: 0.88rem; color: #666; }
+    .site-legal-footer a { color: #241c7a; font-weight: 600; text-decoration: none; }
     @media (max-width: 860px) { .layout, .field-grid { grid-template-columns: 1fr; } .item-card { grid-template-columns: auto 1fr; } }
   </style>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -52,20 +66,37 @@ export function renderCheckoutPage(apiBase: string): string {
   <a href="/" class="back-link" aria-label="Back to home">&larr;</a>
   <main>
     <div class="topbar">
-      <h1>Checkout</h1>
-      <a href="/quotation" class="button secondary">Request quotation instead</a>
+      <div>
+        <h1>Shop</h1>
+        <p class="small" style="margin:0.2rem 0 0;">Browse items, request a quotation, or place an order.</p>
+      </div>
+      <a href="/track" class="button secondary">Track order</a>
     </div>
     <div class="layout">
       <section class="panel">
         <div class="search-row">
           <input id="itemSearch" type="search" placeholder="Search items by name, category, or description" />
           <button id="itemSearchBtn" class="button primary" type="button">Search</button>
+          <button id="refreshItemsBtn" class="button" type="button" style="background:#eceffd;color:#241c7a;">Refresh items</button>
         </div>
         <div id="item-list" class="item-list" aria-live="polite"></div>
       </section>
-      <section class="panel" aria-labelledby="checkout-title">
-        <h2 id="checkout-title">Delivery and payment</h2>
-        <form id="checkout-form">
+      <section class="panel" aria-labelledby="shop-title">
+        <h2 id="shop-title">Your details</h2>
+        <form id="shop-form">
+          <fieldset class="mode-fieldset">
+            <legend>What would you like to do?</legend>
+            <div class="mode-options">
+              <label class="mode-option">
+                <input type="radio" name="requestType" value="quotation" checked />
+                <span><strong>Request a quotation</strong><em>Get a price quote by email. No payment yet.</em></span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" name="requestType" value="order" />
+                <span><strong>Place an order</strong><em>Buy now with your chosen payment method.</em></span>
+              </label>
+            </div>
+          </fieldset>
           <div class="field-grid">
             <div>
               <label for="customerName">Full name</label>
@@ -74,6 +105,14 @@ export function renderCheckoutPage(apiBase: string): string {
             <div>
               <label for="phone">Phone number</label>
               <input id="phone" name="phone" required autocomplete="tel" />
+            </div>
+            <div id="emailField">
+              <label for="email">Email address</label>
+              <input id="email" name="email" type="email" autocomplete="email" />
+            </div>
+            <div id="requiredDateField">
+              <label for="requiredDate">Date required</label>
+              <input id="requiredDate" name="requiredDate" type="date" />
             </div>
             <div>
               <label for="city">Town or city</label>
@@ -98,9 +137,9 @@ export function renderCheckoutPage(apiBase: string): string {
               <label for="address">Delivery address</label>
               <textarea id="address" name="address" rows="3" required autocomplete="street-address"></textarea>
             </div>
-            <div style="grid-column: 1 / -1;">
+            <div id="paymentField" style="grid-column: 1 / -1;" hidden>
               <label for="paymentMethod">Payment method</label>
-              <select id="paymentMethod" name="paymentMethod" required>
+              <select id="paymentMethod" name="paymentMethod">
                 <option value="CASH_ON_DELIVERY">Cash on delivery</option>
                 <option value="MOBILE_MONEY">Mobile money</option>
                 <option value="CARD">Card</option>
@@ -128,16 +167,19 @@ export function renderCheckoutPage(apiBase: string): string {
           <div class="note" style="margin-top: 1rem;">
             <div class="summary-row"><span>Items subtotal</span><strong id="subtotal">$0.00</strong></div>
             <div class="summary-row"><span>Estimated delivery</span><strong id="deliveryFee">$4.00</strong></div>
-            <div class="summary-row total-row"><span>Order total</span><strong id="grandTotal">$4.00</strong></div>
+            <div class="summary-row total-row"><span>Total</span><strong id="grandTotal">$4.00</strong></div>
           </div>
           <div class="actions">
-            <button class="button primary" type="submit">Place order</button>
-            <a class="button" href="/track" style="background:#eceffd;color:#241c7a;">Track existing order</a>
+            <button id="submitBtn" class="button primary" type="submit">Request quotation</button>
+            <a class="button" href="/quotation-status" style="background:#eceffd;color:#241c7a;">View saved quotation</a>
           </div>
         </form>
         <div id="status" class="status" hidden role="status" aria-live="polite"></div>
       </section>
     </div>
+    <footer class="site-legal-footer">
+      <a href="/privacy">Privacy</a> &middot; <a href="/terms">Terms</a>
+    </footer>
   </main>
   <script>
     const apiBase = ${JSON.stringify(apiBase)};
@@ -158,9 +200,15 @@ export function renderCheckoutPage(apiBase: string): string {
     const statusEl = document.getElementById("status");
     const itemSearchInput = document.getElementById("itemSearch");
     const itemSearchBtn = document.getElementById("itemSearchBtn");
+    const refreshItemsBtn = document.getElementById("refreshItemsBtn");
     const locationStatusEl = document.getElementById("locationStatus");
     const detectLocationBtn = document.getElementById("detectLocationBtn");
-    const form = document.getElementById("checkout-form");
+    const form = document.getElementById("shop-form");
+    const submitBtn = document.getElementById("submitBtn");
+    const emailField = document.getElementById("email");
+    const requiredDateField = document.getElementById("requiredDate");
+    const paymentField = document.getElementById("paymentField");
+    const paymentMethodField = document.getElementById("paymentMethod");
     const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
     const regionBaseFees = {
       "Harare": 4, "Bulawayo": 7, "Manicaland": 8, "Mashonaland Central": 7.5,
@@ -170,6 +218,22 @@ export function renderCheckoutPage(apiBase: string): string {
     let products = [];
     let pickupMap;
     let pickupMarker;
+
+    function getRequestType() {
+      const selected = document.querySelector('input[name="requestType"]:checked');
+      return selected ? selected.value : "quotation";
+    }
+
+    function updateRequestMode() {
+      const isQuotation = getRequestType() === "quotation";
+      document.getElementById("emailField").hidden = !isQuotation;
+      document.getElementById("requiredDateField").hidden = !isQuotation;
+      paymentField.hidden = isQuotation;
+      emailField.required = isQuotation;
+      requiredDateField.required = isQuotation;
+      paymentMethodField.required = !isQuotation;
+      submitBtn.textContent = isQuotation ? "Request quotation" : "Place order";
+    }
 
     function setCustomerLocation(lat, lng) {
       document.getElementById("customerLat").value = String(Number(lat).toFixed(6));
@@ -244,6 +308,7 @@ export function renderCheckoutPage(apiBase: string): string {
       const response = await fetch(apiBase + "/api/cart/price", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify({ lines, delivery: { region, totalWeightKg, express: false } })
       });
       const data = await response.json();
@@ -256,12 +321,12 @@ export function renderCheckoutPage(apiBase: string): string {
 
     function productImageHtml(product) {
       if (!product.imageUrl) {
-        return '<div style="width:100%;max-width:140px;height:100px;border-radius:0.5rem;background:#eef2ff;border:1px solid #dfe3f5;margin-bottom:0.45rem;"></div>';
+        return '<div class="photo-placeholder" aria-hidden="true"></div>';
       }
       const src = product.imageUrl.startsWith("http://") || product.imageUrl.startsWith("https://")
         ? product.imageUrl
         : apiBase + (product.imageUrl.startsWith("/") ? product.imageUrl : "/" + product.imageUrl);
-      return '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(product.name) + '" style="width:100%;max-width:140px;height:100px;object-fit:cover;border-radius:0.5rem;border:1px solid #dfe3f5;margin-bottom:0.45rem;" />';
+      return '<img class="product-photo" src="' + escapeHtml(src) + '" alt="' + escapeHtml(product.name) + '" />';
     }
 
     function renderProductCard(product) {
@@ -295,7 +360,9 @@ export function renderCheckoutPage(apiBase: string): string {
       itemList.innerHTML = categories.map((category) =>
         '<section class="category-group">' +
         '<h3 class="category-heading">' + escapeHtml(category) + '</h3>' +
-        '<div class="category-items">' + byCategory.get(category).map(renderProductCard).join("") + '</div></section>'
+        '<div class="category-items">' +
+        byCategory.get(category).map(renderProductCard).join("") +
+        '</div></section>'
       ).join("");
       itemList.querySelectorAll("input").forEach((input) => {
         input.addEventListener("input", updateTotals);
@@ -305,10 +372,22 @@ export function renderCheckoutPage(apiBase: string): string {
 
     async function loadProducts(searchQuery = "") {
       const query = String(searchQuery || "").trim();
-      const path = query ? ("/api/products?search=" + encodeURIComponent(query)) : "/api/products";
-      const response = await fetch(apiBase + path);
+      const path = query
+        ? ("/api/products?search=" + encodeURIComponent(query) + "&_=" + Date.now())
+        : ("/api/products?_=" + Date.now());
+      const response = await fetch(apiBase + path, { cache: "no-store" });
+      if (!response.ok) {
+        itemList.innerHTML = '<p class="small">Could not load products. Check that the API is running and refresh.</p>';
+        return;
+      }
       products = await response.json();
       renderProducts();
+      updateTotals();
+    }
+
+    function resetSelections() {
+      itemList.querySelectorAll("input[type=checkbox]").forEach((input) => { input.checked = false; });
+      itemList.querySelectorAll(".qty-input").forEach((input) => { input.value = "0"; });
       updateTotals();
     }
 
@@ -324,61 +403,109 @@ export function renderCheckoutPage(apiBase: string): string {
         return;
       }
 
-      const payload = {
-        customerName: document.getElementById("customerName").value,
-        phone: document.getElementById("phone").value,
-        address: document.getElementById("address").value,
-        city: document.getElementById("city").value,
-        region: document.getElementById("region").value,
-        paymentMethod: document.getElementById("paymentMethod").value,
-        customerLocation: {
-          lat: Number(document.getElementById("customerLat").value),
-          lng: Number(document.getElementById("customerLng").value)
-        },
-        items: lines
+      const region = document.getElementById("region").value;
+      const city = document.getElementById("city").value;
+      const customerLocation = {
+        lat: Number(document.getElementById("customerLat").value),
+        lng: Number(document.getElementById("customerLng").value)
       };
+      const address = document.getElementById("address").value;
+      const isQuotation = getRequestType() === "quotation";
 
       try {
-        const response = await fetch(apiBase + "/api/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await response.json();
-        if (!response.ok) {
+        if (isQuotation) {
+          const totalWeightKg = lines.reduce((sum, line) => {
+            const product = products.find((item) => item.id === line.productId);
+            return sum + ((product?.weightKg || 0) * line.quantity);
+          }, 0);
+          const response = await fetch(apiBase + "/api/quotation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customerName: document.getElementById("customerName").value,
+              phone: document.getElementById("phone").value,
+              email: emailField.value,
+              city,
+              customerLocation,
+              physicalAddress: address,
+              requiredDate: requiredDateField.value,
+              lines,
+              delivery: { region, totalWeightKg, express: false }
+            })
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            statusEl.hidden = false;
+            statusEl.setAttribute("role", "alert");
+            statusEl.textContent = data.message || "Could not create quotation. Please check all fields and try again.";
+            return;
+          }
           statusEl.hidden = false;
-          statusEl.setAttribute("role", "alert");
-          statusEl.textContent = data.message || "Could not place order. Please check your details and try again.";
-          return;
+          statusEl.innerHTML =
+            "<strong>Quotation created:</strong> " + escapeHtml(data.quotationId) +
+            "<br><strong>Total:</strong> " + escapeHtml(currency.format(data.total)) +
+            "<br><br><a href='/quotation-status?id=" + encodeURIComponent(data.quotationId) + "' class='button primary'>View quotation</a> " +
+            "<a href='/track' class='button secondary'>Track an order</a>";
+        } else {
+          const response = await fetch(apiBase + "/api/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customerName: document.getElementById("customerName").value,
+              phone: document.getElementById("phone").value,
+              address,
+              city,
+              region,
+              paymentMethod: paymentMethodField.value,
+              customerLocation,
+              items: lines
+            })
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            statusEl.hidden = false;
+            statusEl.setAttribute("role", "alert");
+            statusEl.textContent = data.message || "Could not place order. Please check your details and try again.";
+            return;
+          }
+          statusEl.hidden = false;
+          statusEl.innerHTML =
+            "<strong>Order confirmed:</strong> " + escapeHtml(data.id) +
+            "<br><strong>Status:</strong> " + escapeHtml(data.status) +
+            "<br><strong>Total:</strong> " + escapeHtml(currency.format(data.total)) +
+            "<br><strong>Payment:</strong> " + escapeHtml(data.paymentMethod.replace(/_/g, " ")) +
+            "<br><br><a href='/track' class='button primary'>Track this order</a>";
         }
-
-        statusEl.hidden = false;
-        statusEl.innerHTML =
-          "<strong>Order confirmed:</strong> " + escapeHtml(data.id) +
-          "<br><strong>Status:</strong> " + escapeHtml(data.status) +
-          "<br><strong>Total:</strong> " + escapeHtml(currency.format(data.total)) +
-          "<br><strong>Payment:</strong> " + escapeHtml(data.paymentMethod.replace(/_/g, " ")) +
-          "<br><br><a href='/track' class='button primary'>Track this order</a>";
         form.reset();
-        itemList.querySelectorAll("input[type=checkbox]").forEach((input) => { input.checked = false; });
-        itemList.querySelectorAll(".qty-input").forEach((input) => { input.value = "0"; });
-        updateTotals();
+        document.querySelector('input[name="requestType"][value="quotation"]').checked = true;
+        updateRequestMode();
+        resetSelections();
       } catch {
         statusEl.hidden = false;
         statusEl.setAttribute("role", "alert");
-        statusEl.textContent = "Unable to reach the order service. Please try again later.";
+        statusEl.textContent = "Unable to reach the server. Please try again later.";
       }
     });
 
+    document.querySelectorAll('input[name="requestType"]').forEach((input) => {
+      input.addEventListener("change", updateRequestMode);
+    });
     document.getElementById("region").addEventListener("change", updateTotals);
     itemSearchBtn.addEventListener("click", () => loadProducts(itemSearchInput.value));
+    refreshItemsBtn.addEventListener("click", () => loadProducts(itemSearchInput.value));
     itemSearchInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
         loadProducts(itemSearchInput.value);
       }
     });
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        loadProducts(itemSearchInput.value);
+      }
+    });
     detectLocationBtn.addEventListener("click", detectCurrentLocation);
+    updateRequestMode();
     initPickupMap();
     loadProducts();
   </script>
