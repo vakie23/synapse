@@ -2,7 +2,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApiProxy } from "./api-proxy.js";
-import { renderGetAppPage } from "./get-app-page.js";
 import { renderPrivacyPage, renderTermsPage } from "./legal-pages.js";
 import { mobileMetaHtml } from "./mobile-meta.js";
 import { renderShopPage } from "./shop-page.js";
@@ -18,7 +17,6 @@ const logoUrl = process.env.LOGO_URL ?? "";
 const serverApiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
 /** Same-origin proxy so shop and admin always use the same API database. */
 const publicApiBase = "/api-proxy";
-const playStoreUrl = (process.env.PLAY_STORE_URL ?? "").trim();
 
 app.use(publicApiBase, createApiProxy(serverApiBase));
 
@@ -29,8 +27,6 @@ app.get("/", (_req, res) => {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   ${mobileMetaHtml}
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/images/app-icon.svg" type="image/svg+xml" />
   <title>Synapse Engineering</title>
   <style>
     :root {
@@ -236,7 +232,6 @@ app.get("/", (_req, res) => {
           <p><strong>Phone</strong><br><a href="tel:+263783944171">+263 783 944 171</a></p>
         </div>
         <div class="actions" style="margin-top:0;">
-          <a class="button button-light" href="/get-app">Get the app</a>
           <a class="button button-light" href="mailto:synapseengineering@gmail.com?subject=Customer%20Inquiry">Email us</a>
           <a class="button button-secondary" href="tel:+263783944171">Call us</a>
         </div>
@@ -252,7 +247,6 @@ app.get("/", (_req, res) => {
     <aside class="corner-menu" id="siteMenu" aria-label="Site menu">
       <p class="corner-menu-title">Menu</p>
       <nav class="site-nav-links" aria-label="Quick links">
-        <a href="/get-app">Get the app</a>
         <a href="/shop">Shop</a>
         <a href="/track">Track your order</a>
         <a href="/consultation">Request engineer home visit</a>
@@ -262,7 +256,7 @@ app.get("/", (_req, res) => {
     </aside>
 
     <footer class="site-footer">
-      <p>&copy; Synapse Engineering &mdash; <a href="/get-app">Get the app</a> &middot; <a href="/shop">Shop</a> &middot; <a href="/consultation">Engineer visit</a> &middot; <a href="/track">Track order</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/admin">Staff admin</a></p>
+      <p>&copy; Synapse Engineering &mdash; <a href="/shop">Shop</a> &middot; <a href="/consultation">Engineer visit</a> &middot; <a href="/track">Track order</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/admin">Staff admin</a></p>
     </footer>
   </div>
   <script>
@@ -615,10 +609,6 @@ app.get("/quotation-status", (_req, res) => {
   </script>
 </body>
 </html>`);
-});
-
-app.get("/get-app", (_req, res) => {
-  res.type("html").send(renderGetAppPage(playStoreUrl));
 });
 
 app.get("/privacy", (_req, res) => {
