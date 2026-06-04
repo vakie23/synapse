@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "build": "tsc -p tsconfig.json && node --input-type=module -e \"import { cpSync } from 'node:fs'; cpSync('public','dist/public',{ recursive: true })\"",
+    "build": "tsc -p tsconfig.json && node --input-type=module -e \"import { cpSync, existsSync, mkdirSync } from 'node:fs'; if (!existsSync('public')) mkdirSync('public', { recursive: true }); cpSync('public','dist/public',{ recursive: true })\"",
     "lint": "echo \"No lint configured for web\""
   },
   "dependencies": {
+    "@hardware/admin": "1.0.0",
     "express": "^5.1.0"
   }
 }

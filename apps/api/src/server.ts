@@ -5,7 +5,6 @@ import { z } from "zod";
 import type { PaymentMethod } from "@hardware/shared";
 import {
   HardwareDatabase,
-  type DeliveryZone,
   type DispatchSettings,
   type OrderRecord,
   type QuotationRecord
@@ -14,6 +13,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import busboy from "busboy";
+import {
+  computeDeliveryFee,
+  estimateArrivalAt,
+  zimbabweRegions
+} from "./delivery.js";
+import { priceOrderLines } from "./order-pricing.js";
 
 const app = express();
 const allowedOriginsRaw = process.env.CORS_ORIGINS ?? "";
@@ -42,19 +47,6 @@ app.use("/images", express.static(uploadImagesDir));
 const db = new HardwareDatabase();
 const customerSessionCookieName = "synapse_customer_session";
 const customerSessions = new Map<string, { customerId: string; createdAt: number }>();
-const zimbabweRegions = [
-  "Harare",
-  "Bulawayo",
-  "Manicaland",
-  "Mashonaland Central",
-  "Mashonaland East",
-  "Mashonaland West",
-  "Masvingo",
-  "Matabeleland North",
-  "Matabeleland South",
-  "Midlands"
-] as const;
-type ZimbabweRegion = (typeof zimbabweRegions)[number];
 const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
 const sessionCookieName = "synapse_admin_session";
 const sessionSecret = process.env.ADMIN_SESSION_SECRET ?? "synapse-admin-secret";
@@ -90,6 +82,7 @@ function getAdminPassword(): string {
 }
 
 const adminApiKey = process.env.ADMIN_API_KEY?.trim();
+const sessionMaxAgeMs = Number(process.env.ADMIN_SESSION_MAX_AGE_MS ?? 8 * 60 * 60 * 1000);
 
 const companyProfile = {
   companyName: "Synapse Engineering",
@@ -126,53 +119,6 @@ const deliverySchema = z.object({
   express: z.boolean().default(false)
 });
 
-const regionBaseFee: Record<ZimbabweRegion, number> = {
-  Harare: 4,
-  Bulawayo: 7,
-  Manicaland: 8,
-  "Mashonaland Central": 7.5,
-  "Mashonaland East": 6.5,
-  "Mashonaland West": 7,
-  Masvingo: 8.5,
-  "Matabeleland North": 9,
-  "Matabeleland South": 9,
-  Midlands: 8
-};
-
-function computeDeliveryFee(region: ZimbabweRegion, totalWeightKg: number, express: boolean): number {
-  const zoneBase = regionBaseFee[region];
-  const weightBand = totalWeightKg <= 2 ? 0 : totalWeightKg <= 10 ? 3 : 8;
-  const serviceFee = express ? 5 : 0;
-  return zoneBase + weightBand + serviceFee;
-}
-
-const regionArrivalHours: Record<ZimbabweRegion, number> = {
-  Harare: 24,
-  Bulawayo: 48,
-  Manicaland: 72,
-  "Mashonaland Central": 60,
-  "Mashonaland East": 48,
-  "Mashonaland West": 60,
-  Masvingo: 72,
-  "Matabeleland North": 72,
-  "Matabeleland South": 72,
-  Midlands: 60
-};
-
-function estimateArrivalAt(region: ZimbabweRegion): string {
-  const hours = regionArrivalHours[region] ?? 72;
-  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-}
-
-function estimateZone(city: string): DeliveryZone {
-  const normalized = city.toLowerCase();
-  if (normalized.includes("marondera")) return "Marondera";
-  if (normalized.includes("harare")) return "Harare";
-  if (normalized.includes("bulawayo")) return "Bulawayo";
-  if (normalized.includes("mutare")) return "Mutare";
-  return "Other";
-}
-
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) {
     return {};
@@ -194,6 +140,10 @@ function verifySessionToken(token: string): boolean {
     }
 
     const [username, timestamp, signature] = parts;
+    const issuedAt = Number(timestamp);
+    if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > sessionMaxAgeMs) {
+      return false;
+    }
     const payload = `${username}:${timestamp}`;
     const expected = crypto.createHmac("sha256", sessionSecret).update(payload).digest("hex");
     return signature === expected && username === getAdminUsername();
@@ -373,7 +323,7 @@ app.post("/api/quotation", async (req, res) => {
   const lines = payload.data.lines.map((line) => {
     const product = db.getProduct(line.productId);
     if (!product) {
-      throw new Error(`Unknown product: ${line.productId}`);
+      return null;
     }
     return {
       productId: product.id,
@@ -386,7 +336,12 @@ app.post("/api/quotation", async (req, res) => {
     };
   });
 
-  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  if (lines.some((line) => line === null)) {
+    return res.status(400).json({ message: "One or more products were not found" });
+  }
+
+  const resolvedLines = lines as NonNullable<(typeof lines)[number]>[];
+  const subtotal = resolvedLines.reduce((sum, line) => sum + line.lineTotal, 0);
   const deliveryFee = computeDeliveryFee(
     payload.data.delivery.region,
     payload.data.delivery.totalWeightKg,
@@ -403,7 +358,7 @@ app.post("/api/quotation", async (req, res) => {
     physicalAddress: payload.data.physicalAddress,
     requiredDate: payload.data.requiredDate,
     serviceArea: payload.data.delivery.region,
-    lines,
+    lines: resolvedLines,
     subtotal,
     deliveryFee,
     total: subtotal + deliveryFee,
@@ -437,15 +392,21 @@ app.post("/api/orders", async (req, res) => {
   const parsed = orderSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
 
-  const pricedItems = parsed.data.items.map((line) => {
-    const product = db.getProduct(line.productId);
-    if (!product) throw new Error(`Unknown product: ${line.productId}`);
-    if (product.stock < line.quantity) throw new Error(`Insufficient stock for ${product.name}`);
-    return { productId: line.productId, quantity: line.quantity, unitPrice: product.price };
+  const pricing = priceOrderLines(parsed.data.items, parsed.data.region, (productId) => {
+    const product = db.getProduct(productId);
+    if (!product) return undefined;
+    return {
+      price: product.price,
+      weightKg: product.weightKg,
+      stock: product.stock,
+      name: product.name
+    };
   });
 
-  const subtotal = pricedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const deliveryFee = computeDeliveryFee(parsed.data.region, 3, false);
+  if (!pricing.ok) {
+    return res.status(400).json({ message: pricing.message });
+  }
+
   const dispatch = await db.getDispatchSettings();
   const now = new Date().toISOString();
   const order: OrderRecord = {
@@ -458,10 +419,10 @@ app.post("/api/orders", async (req, res) => {
     customerLocation: parsed.data.customerLocation,
     paymentMethod: parsed.data.paymentMethod,
     status: parsed.data.paymentMethod === "CASH_ON_DELIVERY" ? "PLACED" : "PENDING_PAYMENT",
-    items: pricedItems,
-    subtotal,
-    deliveryFee,
-    total: subtotal + deliveryFee,
+    items: pricing.lines,
+    subtotal: pricing.subtotal,
+    deliveryFee: pricing.deliveryFee,
+    total: pricing.total,
     tracking: {
       stage: "Order received",
       currentLocation: dispatch.label,
@@ -472,7 +433,7 @@ app.post("/api/orders", async (req, res) => {
     }
   };
 
-  for (const line of pricedItems) {
+  for (const line of pricing.lines) {
     await db.adjustStock(line.productId, line.quantity);
   }
 
@@ -746,8 +707,21 @@ app.post("/api/admin/credentials", requireAdminAuth, (req, res) => {
   res.json({ success: true, message: "Credentials updated successfully" });
 });
 
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Unhandled API error", err);
+  res.status(500).json({ message: "Internal server error" });
+});
+
 const port = Number(process.env.PORT ?? 4000);
 db.init().then(() => {
+  if (process.env.NODE_ENV === "production") {
+    if (sessionSecret === "synapse-admin-secret") {
+      console.warn("WARNING: ADMIN_SESSION_SECRET is using the default value in production.");
+    }
+    if (!adminApiKey && getAdminPassword() === "Synapse@2026") {
+      console.warn("WARNING: Set ADMIN_API_KEY and change ADMIN_PASSWORD before production use.");
+    }
+  }
   const catalogCount = fs.existsSync(catalogImagesDir)
     ? fs.readdirSync(catalogImagesDir).filter((name) => /^product_p\d+\.(jpg|png)$/i.test(name)).length
     : 0;

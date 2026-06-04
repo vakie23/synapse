@@ -4,21 +4,25 @@ Accessible ecommerce starter for Synapse Engineering to sell electrical hardware
 
 ## Apps
 - `apps/api`: Backend API for products, cart pricing, orders, and admin operations.
-- `apps/web`: Customer-facing web app with landing page and quotation page.
+- `apps/web`: Customer-facing web app with landing page, checkout, and quotation pages.
 - `apps/admin`: Internal admin dashboard shell.
-- `apps/mobile`: React Native starter app.
+- `apps/mobile`: Capacitor wrapper that loads the deployed web app for Google Play publishing.
 
 ## Quick Start
 1. Install dependencies: `npm install`
-2. Run apps: `npm run dev`
-3. API health: `http://localhost:4000/health`
-4. Web app: `http://localhost:3000`
-5. Admin app: `http://localhost:3200`
-6. Quotation page: `http://localhost:3000/quotation`
+2. Sync product images (once): `powershell -ExecutionPolicy Bypass -File scripts/sync-synapse-images.ps1`
+3. Run apps: `npm run dev`
+4. API health: `http://localhost:4000/health`
+5. Web app: `http://localhost:3000`
+6. Admin app: `http://localhost:3200` (also at `http://localhost:3000/admin`)
+7. Quotation page: `http://localhost:3000/quotation`
+8. Checkout page: `http://localhost:3000/checkout`
+9. Run API tests: `npm run test -w @hardware/api`
 
 ## Business Features
 - Front page with company name, service summary, and contact actions.
-- Second page with electrical items, prices, and quotation workflow.
+- Quotation page with electrical items, prices, and quotation workflow.
+- Checkout page to place orders with delivery location and payment choice.
 - Customer quotation API endpoint: `POST /api/quotation`
 - Delivery location capture with customer GPS coordinates.
 - Goods-in-transit tracking endpoint: `GET /api/orders/:id/tracking`
@@ -68,4 +72,4 @@ Accessible ecommerce starter for Synapse Engineering to sell electrical hardware
 ## Accessibility Baseline
 - Semantic HTML landmarks in web/admin pages.
 - Keyboard and screen-reader-friendly content structure.
-- Accessibility checks integrated via CI gates (expandable).
+- Expand accessibility automation in CI as the UI grows.

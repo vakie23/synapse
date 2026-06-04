@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Electrical infrastructure illustration">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8f1ff"/>
+      <stop offset="55%" stop-color="#f7f9ff"/>
+      <stop offset="100%" stop-color="#fff3df"/>
+    </linearGradient>
+    <linearGradient id="tower" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2f2ab2"/>
+      <stop offset="100%" stop-color="#241c7a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <rect y="680" width="1600" height="220" fill="#dfe8ff"/>
+  <g stroke="#241c7a" stroke-width="5" fill="none" opacity="0.85">
+    <path d="M0 420 C 250 360, 420 500, 700 430 S 1200 360, 1600 410"/>
+    <path d="M0 470 C 280 410, 460 540, 760 470 S 1220 410, 1600 460"/>
+    <path d="M0 520 C 220 470, 500 590, 820 520 S 1260 470, 1600 510"/>
+  </g>
+  <g fill="url(#tower)">
+    <polygon points="420,680 460,680 440,260"/>
+    <polygon points="980,680 1020,680 1000,220"/>
+    <polygon points="1180,680 1210,680 1195,320"/>
+  </g>
+  <g stroke="#f0bb2d" stroke-width="4">
+    <line x1="440" y1="300" x2="360" y2="360"/>
+    <line x1="440" y1="300" x2="520" y2="360"/>
+    <line x1="1000" y1="260" x2="910" y2="330"/>
+    <line x1="1000" y1="260" x2="1090" y2="330"/>
+    <line x1="1195" y1="350" x2="1120" y2="410"/>
+    <line x1="1195" y1="350" x2="1270" y2="410"/>
+  </g>
+  <circle cx="1320" cy="180" r="70" fill="#f0bb2d" opacity="0.85"/>
+  <text x="80" y="120" fill="#241c7a" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="700">Synapse Engineering</text>
+  <text x="80" y="175" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="28">Power lines, smart grids, and electrical hardware</text>
+</svg>

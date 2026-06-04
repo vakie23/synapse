@@ -1,6 +1,7 @@
 ﻿import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderCheckoutPage } from "./checkout-page.js";
 // @ts-expect-error Admin router is built by the @hardware/admin workspace package.
 import { createAdminRouter } from "../../admin/dist/router.js";
 
@@ -181,7 +182,7 @@ app.get("/", (_req, res) => {
       </a>
     </header>
     <section class="hero-banner" aria-label="Synapse Engineering">
-      <img src="/images/electrical.jpg" alt="High-voltage power lines and smart grid infrastructure" width="1600" height="900" />
+      <img src="/images/hero.svg" alt="High-voltage power lines and smart grid infrastructure" width="1600" height="900" />
       <div class="hero-overlay">
         <p class="tagline">Trusted electrical partner</p>
         <h1>Powering homes, businesses &amp; industry</h1>
@@ -239,6 +240,7 @@ app.get("/", (_req, res) => {
     <aside class="corner-menu" id="siteMenu" aria-label="Site menu">
       <p class="corner-menu-title">Menu</p>
       <nav class="site-nav-links" aria-label="Quick links">
+        <a href="/checkout">Shop and checkout</a>
         <a href="/quotation">Items, prices and quotation</a>
         <a href="/track">Track your order</a>
         <a href="/consultation">Request engineer home visit</a>
@@ -248,7 +250,7 @@ app.get("/", (_req, res) => {
     </aside>
 
     <footer class="site-footer">
-      <p>&copy; Synapse Engineering &mdash; <a href="/consultation">Engineer visit</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin">Staff admin</a></p>
+      <p>&copy; Synapse Engineering &mdash; <a href="/checkout">Checkout</a> &middot; <a href="/consultation">Engineer visit</a> &middot; <a href="/quotation">Quotation</a> &middot; <a href="/track">Track order</a> &middot; <a href="/admin">Staff admin</a></p>
     </footer>
   </div>
   <script>
@@ -345,6 +347,7 @@ app.get("/quotation", (_req, res) => {
   <a href="/" class="back-link" aria-label="Back to home">&larr;</a>
   <main>
     <div class="topbar">
+      <a href="/checkout" class="button secondary">Shop and checkout</a>
       <a href="/track" class="button secondary">Track your order</a>
     </div>
 
@@ -437,6 +440,16 @@ app.get("/quotation", (_req, res) => {
   </main>
   <script>
     const apiBase = ${JSON.stringify(apiBase)};
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     const itemList = document.getElementById("item-list");
     const subtotalEl = document.getElementById("subtotal");
     const deliveryFeeEl = document.getElementById("deliveryFee");
@@ -570,19 +583,19 @@ app.get("/quotation", (_req, res) => {
       const src = product.imageUrl.startsWith("http://") || product.imageUrl.startsWith("https://")
         ? product.imageUrl
         : apiBase + (product.imageUrl.startsWith("/") ? product.imageUrl : "/" + product.imageUrl);
-      return '<img src="' + src + '" alt="' + product.name + '" style="width:100%;max-width:140px;height:100px;object-fit:cover;border-radius:0.5rem;border:1px solid #dfe3f5;margin-bottom:0.45rem;" />';
+      return '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(product.name) + '" style="width:100%;max-width:140px;height:100px;object-fit:cover;border-radius:0.5rem;border:1px solid #dfe3f5;margin-bottom:0.45rem;" />';
     }
 
     function renderProductCard(product) {
-      return '<label class="item-card" for="pick-' + product.id + '">' +
-        '<input id="pick-' + product.id + '" type="checkbox" />' +
+      return '<label class="item-card" for="pick-' + escapeHtml(product.id) + '">' +
+        '<input id="pick-' + escapeHtml(product.id) + '" type="checkbox" />' +
         '<div>' + productImageHtml(product) +
-        '<h3>' + product.name + '</h3>' +
-        '<p class="small">' + product.description + '</p>' +
-        '<p><strong>' + currency.format(product.price) + '</strong> per ' + product.unit + '</p>' +
+        '<h3>' + escapeHtml(product.name) + '</h3>' +
+        '<p class="small">' + escapeHtml(product.description) + '</p>' +
+        '<p><strong>' + currency.format(product.price) + '</strong> per ' + escapeHtml(product.unit) + '</p>' +
         '</div>' +
-        '<div><label for="qty-' + product.id + '">Quantity</label>' +
-        '<input class="qty-input" id="qty-' + product.id + '" type="number" min="0" value="0" /></div>' +
+        '<div><label for="qty-' + escapeHtml(product.id) + '">Quantity</label>' +
+        '<input class="qty-input" id="qty-' + escapeHtml(product.id) + '" type="number" min="0" value="0" /></div>' +
         '</label>';
     }
 
@@ -605,7 +618,7 @@ app.get("/quotation", (_req, res) => {
 
       itemList.innerHTML = categories.map((category) =>
         '<section class="category-group">' +
-        '<h3 class="category-heading">' + category + '</h3>' +
+        '<h3 class="category-heading">' + escapeHtml(category) + '</h3>' +
         '<div class="category-items">' +
         byCategory.get(category).map(renderProductCard).join("") +
         '</div></section>'
@@ -672,13 +685,13 @@ app.get("/quotation", (_req, res) => {
       }
 
       statusEl.hidden = false;
-      statusEl.innerHTML = "<strong>Quotation created:</strong> " + data.quotationId +
-        "<br><strong>Total:</strong> " + currency.format(data.total) +
-        "<br><strong>Customer:</strong> " + data.customerName +
-        "<br><strong>Phone:</strong> " + data.phone +
-        "<br><strong>Email:</strong> " + data.email +
-        "<br><strong>Date required:</strong> " + data.requiredDate +
-        "<br><strong>Address:</strong> " + data.physicalAddress +
+      statusEl.innerHTML = "<strong>Quotation created:</strong> " + escapeHtml(data.quotationId) +
+        "<br><strong>Total:</strong> " + escapeHtml(currency.format(data.total)) +
+        "<br><strong>Customer:</strong> " + escapeHtml(data.customerName) +
+        "<br><strong>Phone:</strong> " + escapeHtml(data.phone) +
+        "<br><strong>Email:</strong> " + escapeHtml(data.email) +
+        "<br><strong>Date required:</strong> " + escapeHtml(data.requiredDate) +
+        "<br><strong>Address:</strong> " + escapeHtml(data.physicalAddress) +
         "<br><br><a href='/quotation-status?id=" + encodeURIComponent(data.quotationId) + "' class='button primary'>View latest quotation total</a> " +
         "<a href='/track' class='button secondary'>Track your order</a>";
     });
@@ -758,6 +771,17 @@ app.get("/track", (_req, res) => {
     </section>
   </main>
   <script>
+    const apiBase = ${JSON.stringify(apiBase)};
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     const trackForm = document.getElementById("track-form");
     const trackResult = document.getElementById("trackResult");
     const trackError = document.getElementById("trackError");
@@ -838,11 +862,11 @@ app.get("/track", (_req, res) => {
         trackResult.hidden = false;
         trackResult.innerHTML =
           '<div class="tracker">' +
-            '<div class="track-row"><span>Current stage</span><span>' + data.tracking.stage + '</span></div>' +
-            '<div class="track-row"><span>Shipped from</span><span>' + originLabel + '</span></div>' +
-            '<div class="track-row"><span>Current location</span><span>' + data.tracking.currentLocation + '</span></div>' +
-            '<div class="eta-box">Expected arrival: ' + eta + '</div>' +
-            '<div class="track-row"><span>Last updated</span><span>' + new Date(data.tracking.updatedAt).toLocaleString() + '</span></div>' +
+            '<div class="track-row"><span>Current stage</span><span>' + escapeHtml(data.tracking.stage) + '</span></div>' +
+            '<div class="track-row"><span>Shipped from</span><span>' + escapeHtml(originLabel) + '</span></div>' +
+            '<div class="track-row"><span>Current location</span><span>' + escapeHtml(data.tracking.currentLocation) + '</span></div>' +
+            '<div class="eta-box">Expected arrival: ' + escapeHtml(eta) + '</div>' +
+            '<div class="track-row"><span>Last updated</span><span>' + escapeHtml(new Date(data.tracking.updatedAt).toLocaleString()) + '</span></div>' +
           '</div>' +
           '<p style="margin-top:1rem;">Questions? <a href="tel:+263783944171">+263 783 944 171</a> &middot; <a href="mailto:synapseengineering@gmail.com">Email us</a></p>';
 
@@ -996,6 +1020,10 @@ app.get("/quotation-status", (_req, res) => {
   </script>
 </body>
 </html>`);
+});
+
+app.get("/checkout", (_req, res) => {
+  res.type("html").send(renderCheckoutPage(apiBase));
 });
 
 app.get("/privacy", (_req, res) => {

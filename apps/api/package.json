@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.json",
-    "test": "node --test",
+    "test": "node --import tsx --test src/**/*.test.ts",
     "lint": "echo \"No lint configured for api\""
   },
   "dependencies": {

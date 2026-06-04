@@ -38,6 +38,9 @@ function getAdminCreds() {
 
 const sessionCookieName = "synapse_admin_session";
 const sessionSecret = process.env.ADMIN_SESSION_SECRET ?? "synapse-admin-secret";
+const sessionMaxAgeMs = Number(process.env.ADMIN_SESSION_MAX_AGE_MS ?? 8 * 60 * 60 * 1000);
+const serverApiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
+const adminApiKey = (process.env.ADMIN_API_KEY ?? "").trim();
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) {
@@ -72,12 +75,31 @@ function verifySessionToken(token: string): boolean {
     }
 
     const [username, timestamp, signature] = parts;
+    const issuedAt = Number(timestamp);
+    if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > sessionMaxAgeMs) {
+      return false;
+    }
     const payload = `${username}:${timestamp}`;
     const expected = crypto.createHmac("sha256", sessionSecret).update(payload).digest("hex");
     return signature === expected && username === getAdminCreds().username;
   } catch {
     return false;
   }
+}
+
+function getServerSideAdminHeaders(contentType?: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (adminApiKey) {
+    headers.Authorization = `Bearer ${adminApiKey}`;
+  } else {
+    const creds = getAdminCreds();
+    headers["x-admin-username"] = creds.username;
+    headers["x-admin-password"] = creds.password;
+  }
+  if (contentType) {
+    headers["content-type"] = contentType;
+  }
+  return headers;
 }
 
 function renderLoginPage(errorMessage = "", pathPrefix = adminPath): string {
@@ -131,8 +153,6 @@ function renderLoginPage(errorMessage = "", pathPrefix = adminPath): string {
 }
 
 function renderAdminPage(pathPrefix = adminPath): string {
-  const { username: credUser, password: credPass } = getAdminCreds();
-  const adminApiKey = (process.env.ADMIN_API_KEY ?? "").trim();
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -353,10 +373,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
     <div id="dashboardStatus" class="status-box" hidden></div>
   </main>
   <script>
-    const apiBase = "${process.env.API_BASE_URL ?? "http://localhost:4000"}";
-    const adminApiKeyValue = ${JSON.stringify(adminApiKey)};
-    const adminApiUsername = ${JSON.stringify(credUser)};
-    const adminApiPassword = ${JSON.stringify(credPass)};
+    const adminApiProxyBase = ${JSON.stringify(`${pathPrefix}/api-proxy`.replace(/\/+/g, "/"))};
     const dashboardStatus = document.getElementById("dashboardStatus");
     const productForm = document.getElementById("productForm");
     const statusForm = document.getElementById("statusForm");
@@ -495,7 +512,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
       const raw = String(imageUrl || "").trim();
       if (!raw) return "";
       if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-      return apiBase + (raw.startsWith("/") ? raw : ("/" + raw));
+      return adminApiProxyBase + (raw.startsWith("/") ? raw : ("/" + raw));
     }
 
     function escapeHtml(value) {
@@ -507,20 +524,6 @@ function renderAdminPage(pathPrefix = adminPath): string {
         .replace(/'/g, "&#39;");
     }
 
-    function getAdminAuthHeaders(extraHeaders = {}) {
-      if (adminApiKeyValue) {
-        return {
-          ...extraHeaders,
-          Authorization: "Bearer " + adminApiKeyValue
-        };
-      }
-      return {
-        ...extraHeaders,
-        "x-admin-username": adminApiUsername,
-        "x-admin-password": adminApiPassword
-      };
-    }
-
     async function apiFetch(path, options = {}) {
       const { headers: optHeaders = {}, ...rest } = options;
       const method = String(rest.method || "GET").toUpperCase();
@@ -528,9 +531,9 @@ function renderAdminPage(pathPrefix = adminPath): string {
       if (!["GET", "HEAD", "DELETE"].includes(method) && merged["Content-Type"] === undefined) {
         merged["Content-Type"] = "application/json";
       }
-      const response = await fetch(apiBase + path, {
+      const response = await fetch(adminApiProxyBase + path, {
         credentials: "include",
-        headers: getAdminAuthHeaders(merged),
+        headers: merged,
         ...rest
       });
 
@@ -753,7 +756,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
     async function loadDashboard() {
       try {
         const [productsResult, quotationsResult, ordersResult, dispatchResult] = await Promise.allSettled([
-          fetch(apiBase + "/api/products", { credentials: "include" }).then((res) => res.json()),
+          apiFetch("/api/products"),
           apiFetch("/api/admin/quotations"),
           apiFetch("/api/admin/orders"),
           apiFetch("/api/admin/dispatch-settings")
@@ -801,10 +804,9 @@ function renderAdminPage(pathPrefix = adminPath): string {
       const formData = new FormData(productForm);
       
       try {
-        const response = await fetch(apiBase + "/api/admin/products", {
+        const response = await fetch(adminApiProxyBase + "/api/admin/products", {
           method: "POST",
           credentials: "include",
-          headers: getAdminAuthHeaders(),
           body: formData
         });
 
@@ -1022,10 +1024,9 @@ function renderAdminPage(pathPrefix = adminPath): string {
 
       const formData = new FormData(form);
       try {
-        const response = await fetch(apiBase + "/api/admin/products/" + encodeURIComponent(productId), {
+        const response = await fetch(adminApiProxyBase + "/api/admin/products/" + encodeURIComponent(productId), {
           method: "PATCH",
           credentials: "include",
-          headers: getAdminAuthHeaders(),
           body: formData
         });
 
@@ -1070,23 +1071,16 @@ function renderAdminPage(pathPrefix = adminPath): string {
       }
 
       try {
-        const response = await fetch(apiBase + "/api/admin/credentials", {
+        await apiFetch("/api/admin/credentials", {
           method: "POST",
-          credentials: "include",
-          headers: getAdminAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             newUsername: String(formData.get("newUsername")),
             newPassword: newPassword
           })
         });
-
-        if (response.ok) {
-          credentialsForm.reset();
-          showStatus("Credentials updated successfully. Please log in again.");
-          setTimeout(() => window.location.href = "/logout", 1500);
-        } else {
-          showStatus("Failed to update credentials.");
-        }
+        credentialsForm.reset();
+        showStatus("Credentials updated successfully. Please log in again.");
+        setTimeout(() => window.location.href = "/logout", 1500);
       } catch {
         showStatus("Could not update credentials. Please try again.");
       }
@@ -1109,12 +1103,7 @@ function renderAdminPage(pathPrefix = adminPath): string {
       }
 
       try {
-        const response = await fetch(apiBase + "/api/orders/" + encodeURIComponent(orderId) + "/tracking");
-        if (!response.ok) {
-          showTransitTracking(null);
-          return;
-        }
-        const data = await response.json();
+        const data = await apiFetch("/api/orders/" + encodeURIComponent(orderId) + "/tracking");
         activeTransitOrderId = orderId;
         showTransitTracking({ id: orderId, tracking: data.tracking });
       } catch {
@@ -1142,7 +1131,38 @@ router.get("/", (req, res) => {
     return;
   }
 
-  res.type("html").send(renderAdminPage());
+  res.type("html").send(renderAdminPage(adminPath));
+});
+
+router.use("/api-proxy", (req, res, next) => {
+  if (!isAuthenticated(req.headers.cookie)) {
+    res.status(401).json({ message: "Admin authentication required" });
+    return;
+  }
+  next();
+});
+
+router.use("/api-proxy", express.raw({ type: () => true, limit: "15mb" }), async (req, res) => {
+  try {
+    const targetPath = req.url.startsWith("/") ? req.url : `/${req.url}`;
+    const response = await fetch(`${serverApiBase}${targetPath}`, {
+      method: req.method,
+      headers: getServerSideAdminHeaders(typeof req.headers["content-type"] === "string" ? req.headers["content-type"] : undefined),
+      body: ["GET", "HEAD"].includes(String(req.method).toUpperCase()) ? undefined : req.body
+    });
+
+    res.status(response.status);
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() === "transfer-encoding") {
+        return;
+      }
+      res.setHeader(key, value);
+    });
+    res.send(Buffer.from(await response.arrayBuffer()));
+  } catch (error) {
+    console.error("admin api proxy error", error);
+    res.status(502).json({ message: "Could not reach API" });
+  }
 });
 
 router.post("/login", (req, res) => {
