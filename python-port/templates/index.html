@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Synapse Engineering{% endblock %}
+{% block body_class %}page-home{% endblock %}
+
+{% block body %}
+<div class="page">
+  <header class="site-topbar">
+    <a class="site-brand" href="/" aria-label="Synapse Engineering home">
+      <span class="logo-fallback-sm">SE</span>
+      <span class="site-brand-text">
+        <strong>Synapse Engineering</strong>
+        <span>Electrical &amp; Energy Solutions</span>
+      </span>
+    </a>
+  </header>
+
+  <section class="hero-banner" aria-label="Synapse Engineering">
+    <img src="{{ url_for('static', filename='images/hero.svg') }}" alt="Electrical infrastructure" width="1600" height="900" />
+    <div class="hero-overlay">
+      <p class="tagline">Trusted electrical partner</p>
+      <h1>Powering homes, businesses &amp; industry</h1>
+      <p class="intro">
+        We design, install, maintain, and supply electrical systems for residential, commercial,
+        industrial, and infrastructure projects across Zimbabwe.
+      </p>
+      <div class="hero-actions">
+        <a class="button button-light" href="/shop">Shop hardware</a>
+        <a class="button button-secondary" href="/track">Track order</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-services" aria-labelledby="services-heading">
+    <h2 id="services-heading">Our core services</h2>
+    <ul class="services-list">
+      <li>Electrical installations</li>
+      <li>Solar energy solutions</li>
+      <li>Maintenance and repairs</li>
+      <li>Lighting solutions</li>
+      <li>Electrical design and consulting</li>
+      <li>Specialized installations</li>
+      <li>HT and LT line construction</li>
+      <li>Substation construction</li>
+      <li>Supply of electrical materials</li>
+    </ul>
+  </section>
+
+  <section class="home-about" id="about">
+    <h2>About us</h2>
+    <div class="about-grid">
+      <article class="card"><h3>Our commitment</h3></article>
+      <article class="card"><h3>Who we serve</h3></article>
+    </div>
+  </section>
+
+  <section class="home-contact" id="contact">
+    <h2>Contact us</h2>
+    <div class="contact-panel">
+      <div class="contact-box">
+        <p><strong>Email</strong><br><a href="mailto:{{ company.email }}">{{ company.email }}</a></p>
+        <p><strong>Phone</strong><br><a href="tel:{{ company.phone }}">{{ company.phone }}</a></p>
+      </div>
+      <div class="actions">
+        <a class="button button-light" href="mailto:{{ company.email }}?subject=Customer%20Inquiry">Email us</a>
+        <a class="button button-secondary" href="tel:{{ company.phone }}">Call us</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>&copy; Synapse Engineering &mdash;
+      <a href="/shop">Shop</a> &middot;
+      <a href="/consultation">Engineer visit</a> &middot;
+      <a href="/track">Track order</a> &middot;
+      <a href="/privacy">Privacy</a> &middot;
+      <a href="/terms">Terms</a>
+    </p>
+  </footer>
+</div>
+{% endblock %}

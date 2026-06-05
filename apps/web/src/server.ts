@@ -120,7 +120,19 @@ app.get("/", (_req, res) => {
       margin: 0 0 1rem; color: var(--brand-blue); font-size: 1.35rem;
       border-bottom: 3px solid var(--brand-gold); padding-bottom: 0.45rem; display: inline-block;
     }
-    .home-services .services-grid { margin-top: 0.5rem; }
+    .home-services .services-list {
+      margin: 0.5rem 0 0; padding: 0; list-style: none;
+      border: 1px solid #e4e6f5; border-radius: 0.75rem; overflow: hidden;
+      background: #fff; box-shadow: 0 6px 20px rgba(36, 28, 122, 0.06);
+    }
+    .home-services .services-list li {
+      padding: 0.85rem 1.1rem; color: var(--brand-blue); font-weight: 600; font-size: 0.95rem;
+      border-bottom: 1px solid #ececf5;
+    }
+    .home-services .services-list li:last-child { border-bottom: 0; }
+    .home-services .services-list li::before {
+      content: "•"; color: var(--brand-gold); font-weight: 700; margin-right: 0.65rem;
+    }
     .home-about, .home-contact {
       margin-bottom: 2rem; padding: 1.25rem 1.35rem; border-radius: 1rem;
       background: linear-gradient(135deg, #ffffff, var(--soft)); border: 1px solid #e4e6f5;
@@ -243,17 +255,17 @@ app.get("/", (_req, res) => {
 
     <section class="home-services" aria-labelledby="services-heading">
       <h2 id="services-heading">Our core services</h2>
-      <div class="services-grid">
-        <article class="card"><h3>Electrical installations</h3></article>
-        <article class="card"><h3>Solar energy solutions</h3></article>
-        <article class="card"><h3>Maintenance and repairs</h3></article>
-        <article class="card"><h3>Lighting solutions</h3></article>
-        <article class="card"><h3>Electrical design and consulting</h3></article>
-        <article class="card"><h3>Specialized installations</h3></article>
-        <article class="card"><h3>HT and LT line construction</h3></article>
-        <article class="card"><h3>Substation construction</h3></article>
-        <article class="card"><h3>Supply of electrical materials</h3></article>
-      </div>
+      <ul class="services-list">
+        <li>Electrical installations</li>
+        <li>Solar energy solutions</li>
+        <li>Maintenance and repairs</li>
+        <li>Lighting solutions</li>
+        <li>Electrical design and consulting</li>
+        <li>Specialized installations</li>
+        <li>HT and LT line construction</li>
+        <li>Substation construction</li>
+        <li>Supply of electrical materials</li>
+      </ul>
     </section>
 
     <section class="home-about" id="about">
