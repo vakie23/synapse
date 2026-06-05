@@ -1,6 +1,13 @@
 import { mobileMetaHtml } from "./mobile-meta.js";
 
-export function renderShopPage(apiBase: string): string {
+export type ShopPageOptions = {
+  initialProducts?: Array<Record<string, unknown>>;
+  initialError?: string;
+};
+
+export function renderShopPage(apiBase: string, options: ShopPageOptions = {}): string {
+  const initialProducts = options.initialProducts ?? [];
+  const initialError = options.initialError ?? "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -186,6 +193,8 @@ export function renderShopPage(apiBase: string): string {
   </main>
   <script>
     const apiBase = ${JSON.stringify(apiBase)};
+    let products = ${JSON.stringify(initialProducts)};
+    const initialLoadError = ${JSON.stringify(initialError)};
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -218,7 +227,6 @@ export function renderShopPage(apiBase: string): string {
       "Mashonaland East": 6.5, "Mashonaland West": 7, "Masvingo": 8.5,
       "Matabeleland North": 9, "Matabeleland South": 9, "Midlands": 8
     };
-    let products = [];
     let pickupMap;
     let pickupMarker;
 
@@ -346,6 +354,10 @@ export function renderShopPage(apiBase: string): string {
     }
 
     function renderProducts() {
+      if (!Array.isArray(products) || products.length === 0) {
+        itemList.innerHTML = '<p class="small">No products are available yet. Try Refresh items, or check that the API service is running.</p>';
+        return;
+      }
       const byCategory = new Map();
       products.forEach((product) => {
         const category = product.category || "Other";
@@ -374,18 +386,34 @@ export function renderShopPage(apiBase: string): string {
     }
 
     async function loadProducts(searchQuery = "") {
+      const hadProducts = products.length > 0;
+      if (!hadProducts) {
+        itemList.innerHTML = '<p class="small">Loading products...</p>';
+      }
       const query = String(searchQuery || "").trim();
       const path = query
         ? ("/api/products?search=" + encodeURIComponent(query) + "&_=" + Date.now())
         : ("/api/products?_=" + Date.now());
-      const response = await fetch(apiBase + path, { cache: "no-store" });
-      if (!response.ok) {
-        itemList.innerHTML = '<p class="small">Could not load products. Check that the API is running and refresh.</p>';
-        return;
+      try {
+        const response = await fetch(apiBase + path, { cache: "no-store" });
+        if (!response.ok) {
+          const hint = response.status === 502
+            ? "The web app could not reach the API. On Render, set API_BASE_URL on synapse-web to your API URL (e.g. https://synapse-api-w9si.onrender.com)."
+            : "Check that synapse-api is running on Render, then click Refresh items.";
+          itemList.innerHTML = '<p class="small" role="alert">Could not load products (error ' + response.status + "). " + hint + "</p>";
+          return;
+        }
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+          itemList.innerHTML = '<p class="small" role="alert">Invalid product data from server.</p>';
+          return;
+        }
+        products = data;
+        renderProducts();
+        updateTotals();
+      } catch {
+        itemList.innerHTML = '<p class="small" role="alert">Could not load products. The API may be offline or waking up — wait a minute and click Refresh items.</p>';
       }
-      products = await response.json();
-      renderProducts();
-      updateTotals();
     }
 
     function resetSelections() {
@@ -510,6 +538,12 @@ export function renderShopPage(apiBase: string): string {
     detectLocationBtn.addEventListener("click", detectCurrentLocation);
     updateRequestMode();
     initPickupMap();
+    if (products.length > 0) {
+      renderProducts();
+      updateTotals();
+    } else if (initialLoadError) {
+      itemList.innerHTML = '<p class="small" role="alert">' + escapeHtml(initialLoadError) + '</p>';
+    }
     loadProducts();
   </script>
 </body>
