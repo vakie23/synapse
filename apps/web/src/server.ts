@@ -270,9 +270,10 @@ app.get("/", (_req, res) => {
 
     <section class="home-about" id="about">
       <h2>About us</h2>
+      <p>We deliver safe, quality electrical work for residential, commercial, industrial, and infrastructure projects.</p>
       <div class="about-grid" style="margin-top:1rem;">
-        <article class="card"><h3>Our commitment</h3></article>
-        <article class="card"><h3>Who we serve</h3></article>
+        <article class="card"><h3>Our commitment</h3><p>Safety, quality workmanship, timely delivery, and customer satisfaction.</p></article>
+        <article class="card"><h3>Who we serve</h3><p>Homeowners, builders, mines, businesses, and property developers.</p></article>
       </div>
     </section>
 
