@@ -18,7 +18,48 @@ const serverApiBase = process.env.API_BASE_URL ?? "http://localhost:4000";
 /** Same-origin proxy so shop and admin always use the same API database. */
 const publicApiBase = "/api-proxy";
 
+if (process.env.NODE_ENV === "production") {
+  const looksUnset =
+    serverApiBase.includes("your-api-domain") ||
+    serverApiBase.includes("example") ||
+    serverApiBase.includes("localhost");
+  if (looksUnset) {
+    console.warn(
+      "WARNING: API_BASE_URL is missing or still a placeholder. Shop products will not load until you set it on Render (synapse-web) to your live API URL."
+    );
+  }
+}
+
 app.use(publicApiBase, createApiProxy(serverApiBase));
+
+async function fetchProductsForShop(): Promise<{
+  products: Array<Record<string, unknown>>;
+  error: string;
+}> {
+  const url = `${serverApiBase.replace(/\/$/, "")}/api/products`;
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) {
+      return {
+        products: [],
+        error: `Could not load products from API (${response.status}). On Render, set API_BASE_URL on synapse-web to your API service URL and ensure synapse-api is running.`
+      };
+    }
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      return {
+        products: [],
+        error: "No products in the catalog. Ensure the API service is deployed with its data disk attached."
+      };
+    }
+    return { products: data, error: "" };
+  } catch {
+    return {
+      products: [],
+      error: "Could not reach the API. Set API_BASE_URL on the synapse-web service (e.g. https://synapse-api-w9si.onrender.com) and confirm synapse-api is online."
+    };
+  }
+}
 
 app.get("/", (_req, res) => {
   res.type("html").send(`<!doctype html>
@@ -203,24 +244,23 @@ app.get("/", (_req, res) => {
     <section class="home-services" aria-labelledby="services-heading">
       <h2 id="services-heading">Our core services</h2>
       <div class="services-grid">
-        <article class="card"><h3>Electrical installations</h3><p>Domestic wiring, commercial and industrial installations, conduit layout, distribution boards, sockets, switches, and lighting systems.</p></article>
-        <article class="card"><h3>Solar energy solutions</h3><p>Solar system design and sizing, installation of panels/inverters/batteries, hybrid and off-grid setups, upgrades, and troubleshooting.</p></article>
-        <article class="card"><h3>Maintenance and repairs</h3><p>Fault finding, preventive maintenance, generator servicing, and replacement of damaged electrical components.</p></article>
-        <article class="card"><h3>Lighting solutions</h3><p>Indoor and outdoor lighting, security lighting, LED upgrades, and pole light installation.</p></article>
-        <article class="card"><h3>Electrical design and consulting</h3><p>System planning, load calculations, project supervision, and standards-compliant implementation.</p></article>
-        <article class="card"><h3>Specialized installations</h3><p>Smart home systems, cooker control units, waterproof sockets, and heavy-duty industrial connections.</p></article>
-        <article class="card"><h3>HT and LT line construction</h3><p>Construction of high and low tension lines, pole erection, conductor stringing/sagging, maintenance, and upgrades.</p></article>
-        <article class="card"><h3>Substation construction</h3><p>Substation builds including transformer installation, switchgear setup, protection systems, commissioning, and testing.</p></article>
-        <article class="card"><h3>Supply of electrical materials</h3><p>Reliable supply of cables, PVC conduits, switches, sockets, and related electrical accessories.</p></article>
+        <article class="card"><h3>Electrical installations</h3></article>
+        <article class="card"><h3>Solar energy solutions</h3></article>
+        <article class="card"><h3>Maintenance and repairs</h3></article>
+        <article class="card"><h3>Lighting solutions</h3></article>
+        <article class="card"><h3>Electrical design and consulting</h3></article>
+        <article class="card"><h3>Specialized installations</h3></article>
+        <article class="card"><h3>HT and LT line construction</h3></article>
+        <article class="card"><h3>Substation construction</h3></article>
+        <article class="card"><h3>Supply of electrical materials</h3></article>
       </div>
     </section>
 
     <section class="home-about" id="about">
       <h2>About us</h2>
-      <p>We deliver safe, quality electrical work for residential, commercial, industrial, and infrastructure projects.</p>
       <div class="about-grid" style="margin-top:1rem;">
-        <article class="card"><h3>Our commitment</h3><p>Safety, quality workmanship, timely delivery, and customer satisfaction.</p></article>
-        <article class="card"><h3>Who we serve</h3><p>Homeowners, builders, mines, businesses, and property developers.</p></article>
+        <article class="card"><h3>Our commitment</h3></article>
+        <article class="card"><h3>Who we serve</h3></article>
       </div>
     </section>
 
@@ -238,59 +278,21 @@ app.get("/", (_req, res) => {
       </div>
     </section>
 
-    <div class="menu-fab-wrap">
-      <button type="button" class="menu-fab" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteMenu">
-        <span class="menu-dots" aria-hidden="true">⋯</span>
-      </button>
-      <span class="menu-fab-label">Menu</span>
-    </div>
-    <aside class="corner-menu" id="siteMenu" aria-label="Site menu">
-      <p class="corner-menu-title">Menu</p>
-      <nav class="site-nav-links" aria-label="Quick links">
-        <a href="/shop">Shop</a>
-        <a href="/track">Track your order</a>
-        <a href="/consultation">Request engineer home visit</a>
-        <a href="/#about">About us</a>
-        <a href="/#contact">Contact us</a>
-      </nav>
-    </aside>
-
     <footer class="site-footer">
       <p>&copy; Synapse Engineering &mdash; <a href="/shop">Shop</a> &middot; <a href="/consultation">Engineer visit</a> &middot; <a href="/track">Track order</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/admin">Staff admin</a></p>
     </footer>
   </div>
-  <script>
-    const menuToggle = document.getElementById("menuToggle");
-    const siteMenu = document.getElementById("siteMenu");
-    const menuWrap = document.querySelector(".menu-fab-wrap");
-    menuToggle.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const open = siteMenu.classList.toggle("is-open");
-      menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
-      menuToggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-    });
-    document.addEventListener("click", (event) => {
-      if (!siteMenu.classList.contains("is-open")) return;
-      if (siteMenu.contains(event.target) || menuWrap.contains(event.target)) return;
-      siteMenu.classList.remove("is-open");
-      menuToggle.setAttribute("aria-expanded", "false");
-      menuToggle.setAttribute("aria-label", "Open menu");
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && siteMenu.classList.contains("is-open")) {
-        siteMenu.classList.remove("is-open");
-        menuToggle.setAttribute("aria-expanded", "false");
-        menuToggle.setAttribute("aria-label", "Open menu");
-      }
-    });
-  </script>
 </body>
 
 </html>`);
 });
 
-app.get("/shop", (_req, res) => {
-  res.type("html").send(renderShopPage(publicApiBase));
+app.get("/shop", async (_req, res) => {
+  const { products, error } = await fetchProductsForShop();
+  res.type("html").send(renderShopPage(publicApiBase, {
+    initialProducts: products,
+    initialError: error
+  }));
 });
 
 app.get("/quotation", (_req, res) => {
