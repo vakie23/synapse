@@ -103,18 +103,20 @@ app.get("/", (_req, res) => {
     .hero-banner {
       position: relative; margin-bottom: 1.5rem; border-radius: 1rem; overflow: hidden;
       box-shadow: 0 16px 40px rgba(36, 28, 122, 0.22); border-bottom: 4px solid var(--brand-gold);
+      max-height: clamp(200px, 28vw, 300px);
     }
     .hero-banner img {
-      width: 100%; height: auto; display: block; vertical-align: middle;
+      width: 100%; height: 100%; min-height: clamp(200px, 28vw, 300px);
+      display: block; object-fit: cover; object-position: center 35%;
     }
     .hero-overlay {
       position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
-      padding: clamp(1.25rem, 4vw, 2rem); color: #fff;
+      padding: clamp(0.85rem, 2.5vw, 1.25rem); color: #fff;
       background: linear-gradient(180deg, rgba(20, 16, 70, 0) 0%, rgba(36, 28, 122, 0.45) 50%, rgba(26, 20, 96, 0.88) 100%);
     }
-    .hero-overlay h1 { margin: 0 0 0.35rem; font-size: clamp(1.45rem, 4vw, 2.15rem); font-weight: 700; max-width: 36rem; }
-    .hero-overlay .tagline { margin: 0 0 0.75rem; color: var(--brand-gold); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; }
-    .hero-overlay .intro { margin: 0; max-width: 38rem; font-size: clamp(0.95rem, 2.5vw, 1.05rem); opacity: 0.96; line-height: 1.65; }
+    .hero-overlay h1 { margin: 0 0 0.25rem; font-size: clamp(1.15rem, 3vw, 1.65rem); font-weight: 700; max-width: 36rem; }
+    .hero-overlay .tagline { margin: 0 0 0.4rem; color: var(--brand-gold); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+    .hero-overlay .intro { margin: 0; max-width: 38rem; font-size: clamp(0.85rem, 2vw, 0.95rem); opacity: 0.96; line-height: 1.5; }
     .home-services { margin-bottom: 2rem; }
     .home-services h2 {
       margin: 0 0 1rem; color: var(--brand-blue); font-size: 1.35rem;
