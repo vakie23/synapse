@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "echo \"Synapse Android app loads the deployed customer app. Run: npm run app:prepare from repo root\"",
-    "build": "node scripts/prepare-android.mjs",
+    "build": "node -e \"console.log('Skipping mobile build on Render/CI. Run npm run app:prepare locally for Android.')\"",
     "android:prepare": "node scripts/prepare-android.mjs",
     "android:release": "node scripts/build-release.mjs",
     "android:init": "cap add android",
