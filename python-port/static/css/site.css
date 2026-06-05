@@ -26,11 +26,13 @@ a { color: var(--brand-blue); }
 h1, h2, h3 { color: var(--brand-blue); }
 
 .site-topbar {
-  display: flex; align-items: center; padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 1rem 1.25rem; margin-bottom: 1.25rem;
   background: linear-gradient(135deg, #ffffff, var(--soft)); border-radius: 1rem;
   border: 1px solid #e4e6f5; box-shadow: 0 12px 32px rgba(36, 28, 122, 0.08);
   border-bottom: 4px solid var(--brand-gold);
 }
+.topbar-shop { flex-shrink: 0; white-space: nowrap; }
 
 .site-brand { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: inherit; }
 .logo-fallback-sm {
@@ -98,8 +100,8 @@ h1, h2, h3 { color: var(--brand-blue); }
   font-weight: 700; border: 0; cursor: pointer; box-shadow: 0 8px 16px rgba(0,0,0,0.08);
 }
 .button-light { background: #fff; color: var(--brand-blue); }
+.button-primary, .primary { background: linear-gradient(135deg, #2f2ab2, var(--brand-blue)); color: white; }
 .button-secondary, .secondary { background: linear-gradient(135deg, #d53d42, var(--brand-red)); color: white; }
-.primary { background: linear-gradient(135deg, #2f2ab2, var(--brand-blue)); color: white; }
 .muted { background: #eceffd; color: var(--brand-blue); }
 
 .menu-fab-wrap { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }

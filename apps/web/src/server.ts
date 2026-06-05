@@ -87,9 +87,13 @@ app.get("/", (_req, res) => {
     }
     .page { width: min(1200px, 96vw); margin: 0 auto; padding: 1.25rem 0 3.5rem; }
     .site-topbar {
-      display: flex; align-items: center; padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      padding: 1rem 1.25rem; margin-bottom: 1.25rem;
       background: linear-gradient(135deg, #ffffff, var(--soft)); border-radius: 1rem; border: 1px solid #e4e6f5;
       box-shadow: 0 12px 32px rgba(36, 28, 122, 0.08); border-bottom: 4px solid var(--brand-gold);
+    }
+    .topbar-shop {
+      flex-shrink: 0; white-space: nowrap;
     }
     .site-brand { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: inherit; }
     .site-brand img { width: 72px; height: auto; }
@@ -242,6 +246,7 @@ app.get("/", (_req, res) => {
         <span class="logo-fallback-sm" style="${logoUrl ? "display:none;" : ""}">SE</span>
         <span class="site-brand-text"><strong>Synapse Engineering</strong><span>Electrical &amp; Energy Solutions</span></span>
       </a>
+      <a class="button button-primary topbar-shop" href="/shop">Shop</a>
     </header>
     <section class="hero-banner" aria-label="Synapse Engineering">
       <img src="/images/hero.svg" alt="High-voltage power lines and smart grid infrastructure" width="1600" height="900" />
